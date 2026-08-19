@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
-export default function PdfReportTemplate({ dossier, stationsData = [], analysisResult = {}, vigilanceStatus = {} }) {
+export default function PdfReportTemplate({ dossier, stationsData = [], analysisResult = {}, insuranceDecision = {}, vigilanceStatus = {} }) {
   const [qrUrl, setQrUrl] = useState('');
 
   const { assure = {}, sinistre = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
@@ -45,7 +45,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
       {/* ================= PAGE 1 ================= */}
       <div 
         id="pdf-page-1" 
-        className="w-[210mm] h-[297mm] max-h-[297mm] p-[12mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
+        className="w-[210mm] h-[297mm] max-h-[297mm] p-[11mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
       >
         {isDraft && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 rotate-[-30deg]">
@@ -81,13 +81,13 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           </div>
 
-          {/* Titre Principal Agrandie */}
+          {/* Titre Principal */}
           <div>
-            <h1 className="text-[14.5pt] font-black tracking-tight text-slate-950 uppercase leading-none">
-              Rapport Météorologique de Sinistre
+            <h1 className="text-[14pt] font-black tracking-tight text-slate-950 uppercase leading-none">
+              Rapport Météorologique de Sinistre & Attestation
             </h1>
             <p className="text-[8.5pt] text-slate-600 font-medium mt-1">
-              Analyse des observations météorologiques instrumentales à proximité du lieu déclaré
+              Contrôle d'intempéries et analyse instrumentale à proximité du lieu déclaré
             </p>
           </div>
 
@@ -133,52 +133,73 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           </div>
 
+          {/* ENCADRÉ CONSIGNE DE GESTION & VERDICT ASSURANCE (HISTORIQUE ASSURWEATHER) */}
+          {insuranceDecision?.decision && (
+            <div className={`border rounded-xl p-2.5 text-[8.5pt] flex items-center justify-between shadow-2xs ${
+              insuranceDecision.isFavorable 
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-950' 
+                : 'border-rose-300 bg-rose-50 text-rose-950'
+            }`}>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{insuranceDecision.isFavorable ? '👍' : '❌'}</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-[9pt] font-black uppercase tracking-wider">
+                      Consigne de Gestion : {insuranceDecision.decision}
+                    </strong>
+                    <span className={`px-2 py-0.2 rounded text-[7.5pt] font-black uppercase ${
+                      insuranceDecision.isFavorable ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
+                    }`}>
+                      {insuranceDecision.isFavorable ? 'Garantie Acquise' : 'Garantie Non Acquise'}
+                    </span>
+                  </div>
+                  <span className="text-[7.5pt] text-slate-700 block mt-0.5">
+                    {insuranceDecision.ruleText} — {insuranceDecision.observedSummary}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[7pt] font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-300">
+                Seuil {insuranceDecision.threshold} {insuranceDecision.category === 'VENT' ? 'km/h' : (insuranceDecision.category === 'PLUIE' ? 'mm' : '°C')}
+              </span>
+            </div>
+          )}
+
           {/* Contexte de Vigilance Officiel */}
           {vigilanceStatus && (
-            <div className={`border rounded-xl p-2.5 text-[8pt] flex items-center justify-between shadow-2xs ${vigiStyle?.bg}`}>
+            <div className={`border rounded-xl p-2 text-[7.5pt] flex items-center justify-between shadow-2xs ${vigiStyle?.bg}`}>
               <div className="flex items-center gap-2.5">
-                <span className="text-lg">{vigiStyle?.icon}</span>
+                <span className="text-base">{vigiStyle?.icon}</span>
                 <div>
                   <strong className={`block uppercase ${vigiStyle?.text}`}>
                     Vigilance {vigilanceStatus.level || 'Normale'} — {Array.isArray(vigilanceStatus.aleas) ? vigilanceStatus.aleas.join(', ') : 'Conditions surveillées'}
                   </strong>
-                  <span className="text-[7.5pt] text-slate-600">
-                    Statut officiel départemental Météo-France. Les mesures physiques locales figurent ci-après.
+                  <span className="text-[7pt] text-slate-600">
+                    Statut officiel départemental Météo-France. Mesures physiques locales ci-après.
                   </span>
                 </div>
               </div>
-              <span className="text-[7pt] font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+              <span className="text-[6.5pt] font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
                 Source : Météo-France
               </span>
             </div>
           )}
 
-          {/* Avertissement Foudre */}
-          {isLightningClaim && (
-            <div className="border border-sky-300 bg-sky-50/80 rounded-xl p-2 text-[7.5pt] flex items-center gap-2 text-sky-950">
-              <span className="text-base">⚡</span>
-              <p className="leading-tight">
-                <strong>Précision méthodologique :</strong> Aucune donnée de détection de foudre n’est intégrée à ce rapport. Le présent document décrit uniquement les conditions météorologiques observées à proximité du lieu du sinistre et ne permet pas, à lui seul, de confirmer un impact direct de foudre.
-              </p>
-            </div>
-          )}
-
           {/* 4 Cartes KPI comme sur le Dashboard */}
           <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
               Synthèse Météorologique
             </h2>
             <div className="grid grid-cols-4 gap-2.5">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[85px] box-border">
-                  <div className="flex items-center justify-center gap-1 text-[7.5pt] font-black uppercase text-slate-700 tracking-wider w-full pt-0.5">
+                <div key={idx} className="border border-slate-200 rounded-xl p-2 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[78px] box-border">
+                  <div className="flex items-center justify-center gap-1 text-[7pt] font-black uppercase text-slate-700 tracking-wider w-full pt-0.5">
                     <span className="text-xs leading-none">{kpi.icon}</span>
                     <span className="leading-normal truncate">{kpi.label}</span>
                   </div>
-                  <div className="text-[14pt] font-black text-slate-950 my-0.5 leading-normal">
+                  <div className="text-[13pt] font-black text-slate-950 my-0.5 leading-normal">
                     {kpi.val}
                   </div>
-                  <div className="text-[7.5pt] text-slate-500 font-medium leading-tight w-full pb-0.5 truncate">
+                  <div className="text-[7pt] text-slate-500 font-medium leading-tight w-full pb-0.5 truncate">
                     {kpi.sub}
                   </div>
                 </div>
@@ -197,7 +218,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               </span>
             </div>
 
-            <div className="w-full h-[240px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full h-[225px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
@@ -205,7 +226,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               />
             </div>
 
-            <div className="mt-1.5 text-center text-[7.5pt] text-slate-700 border-t border-slate-100 pt-1 font-medium">
+            <div className="mt-1 text-center text-[7pt] text-slate-700 border-t border-slate-100 pt-0.5 font-medium">
               <strong className="text-slate-950 font-bold">Stations de référence :</strong>{' '}
               {activeStations.map((s, i) => `${i+1}. ${s.name} (${s.distance} km)`).join('   •   ')}
             </div>
@@ -213,10 +234,10 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer Page 1 */}
-        <div className="flex justify-between items-end pt-2 border-t border-slate-200 text-[7.5pt] text-slate-500">
+        <div className="flex justify-between items-end pt-1.5 border-t border-slate-200 text-[7.5pt] text-slate-500">
           <div>
             <p className="font-bold text-slate-700">Météo Climat PRO — Analyse et expertise météorologique</p>
-            <p className="text-[7pt]">Référence : {reference} • Version 1.0 • Document officiel d'expertise</p>
+            <p className="text-[6.5pt]">Référence : {reference} • Version 1.0 • Document officiel d'expertise</p>
           </div>
           {qrUrl && (
             <div className="flex items-center gap-2">
@@ -233,17 +254,17 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
       {/* ================= PAGE 2 ================= */}
       <div 
         id="pdf-page-2" 
-        className="w-[210mm] h-[297mm] max-h-[297mm] p-[12mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
+        className="w-[210mm] h-[297mm] max-h-[297mm] p-[11mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
       >
         <div className="space-y-2.5">
           <div className="flex justify-between items-center pb-1.5 border-b-2 border-slate-200">
-            <span className="text-[8.5pt] font-black text-sky-950 uppercase">MÉTÉO CLIMAT PRO — RAPPORT D'EXPERTISE {reference}</span>
+            <span className="text-[8.5pt] font-black text-sky-950 uppercase">MÉTÉO CLIMAT PRO — DOSSIER D'EXPERTISE {reference}</span>
             <span className="text-[8pt] text-slate-600 font-bold">{sinistre.commune} — {sinistre.dateSinistre}</span>
           </div>
 
           {/* 1. Tableau détaillé des 3 stations avec typographie noble */}
           <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
               1. Observations Détaillées des Stations de Référence
             </h2>
 
@@ -311,34 +332,34 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           {/* 2. Records Historiques & Normales (comme sur le Dashboard) */}
           {primaryStation?.records && (
             <div>
-              <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+              <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
                 2. Records Historiques & Normales de Saison ({primaryStation.name})
               </h2>
               <div className="grid grid-cols-4 gap-2 text-[7.5pt]">
-                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50 text-center">
-                  <span className="text-slate-500 font-medium block">Record Rafale</span>
-                  <strong className="text-rose-950 font-black text-[9pt] block">
+                <div className="border border-slate-200 rounded-lg p-1.5 bg-slate-50 text-center">
+                  <span className="text-slate-500 font-medium block text-[7pt]">Record Rafale</span>
+                  <strong className="text-rose-950 font-black text-[8.5pt] block">
                     {primaryStation.records.windRecord?.val ? `${primaryStation.records.windRecord.val} km/h` : '126 km/h'}
                   </strong>
                   <span className="text-[6.5pt] text-slate-400">{primaryStation.records.windRecord?.date || 'Historique'}</span>
                 </div>
-                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50 text-center">
-                  <span className="text-slate-500 font-medium block">Record Pluie 24h</span>
-                  <strong className="text-cyan-950 font-black text-[9pt] block">
+                <div className="border border-slate-200 rounded-lg p-1.5 bg-slate-50 text-center">
+                  <span className="text-slate-500 font-medium block text-[7pt]">Record Pluie 24h</span>
+                  <strong className="text-cyan-950 font-black text-[8.5pt] block">
                     {primaryStation.records.rainRecord?.val ? `${primaryStation.records.rainRecord.val} mm` : '54 mm'}
                   </strong>
                   <span className="text-[6.5pt] text-slate-400">{primaryStation.records.rainRecord?.date || 'Historique'}</span>
                 </div>
-                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50 text-center">
-                  <span className="text-slate-500 font-medium block">Normale Tn Mensuelle</span>
-                  <strong className="text-sky-950 font-black text-[9pt] block">
+                <div className="border border-slate-200 rounded-lg p-1.5 bg-slate-50 text-center">
+                  <span className="text-slate-500 font-medium block text-[7pt]">Normale Tn Mensuelle</span>
+                  <strong className="text-sky-950 font-black text-[8.5pt] block">
                     {primaryStation.records.monthlyNormal?.tn !== undefined ? `${primaryStation.records.monthlyNormal.tn}°C` : '14.2°C'}
                   </strong>
                   <span className="text-[6.5pt] text-slate-400">1991-2020</span>
                 </div>
-                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50 text-center">
-                  <span className="text-slate-500 font-medium block">Normale Tx Mensuelle</span>
-                  <strong className="text-amber-950 font-black text-[9pt] block">
+                <div className="border border-slate-200 rounded-lg p-1.5 bg-slate-50 text-center">
+                  <span className="text-slate-500 font-medium block text-[7pt]">Normale Tx Mensuelle</span>
+                  <strong className="text-amber-950 font-black text-[8.5pt] block">
                     {primaryStation.records.monthlyNormal?.tx !== undefined ? `${primaryStation.records.monthlyNormal.tx}°C` : '24.1°C'}
                   </strong>
                   <span className="text-[6.5pt] text-slate-400">1991-2020</span>
@@ -347,37 +368,45 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           )}
 
-          {/* 3. Analyse et Synthèse Météorologique */}
+          {/* 3. Analyse & Avis de l'Expert Météorologue */}
           <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
-              3. Analyse et Synthèse des Conditions Observées
+            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+              3. Analyse et Commentaires de l'Expert Météorologue
             </h2>
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50/90 text-[8pt] text-slate-800 leading-relaxed space-y-1 shadow-2xs">
-              {analysisResult?.text ? (
-                analysisResult.text.split('\n\n').map((p, idx) => (
-                  <p key={idx}>{p}</p>
-                ))
-              ) : (
-                <p>Analyse météorologique en cours de traitement...</p>
-              )}
-            </div>
-          </div>
-
-          {/* 4. Conclusion Météorologique */}
-          <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
-              4. Conclusion Météorologique
-            </h2>
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-white text-[8pt] text-slate-800 leading-relaxed shadow-2xs">
-              <p>
-                L'examen concordant des observations instrumentales met en évidence la réalité de l'événement météorologique déclaré à la date du <strong>{sinistre.dateSinistre || 'date déclarée'}</strong>. Les mesures issues des capteurs Météo-France fournissent une référence objective sur l'intensité des paramètres physiques observés à proximité du lieu du sinistre.
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50/90 text-[8pt] text-slate-800 leading-relaxed shadow-2xs">
+              <p className="font-semibold text-slate-900">
+                {insuranceDecision?.commentExpert || analysisResult?.text || "Analyse météorologique en cours..."}
               </p>
             </div>
           </div>
 
-          {/* 5. Sources, Méthodologie et Limites */}
+          {/* 4. Conclusion & Opposabilité Assurance avec Validation & Signature */}
           <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+              4. Validation & Certification de l'Attestation
+            </h2>
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-white text-[7.5pt] text-slate-800 flex justify-between items-center shadow-2xs">
+              <div className="max-w-[65%] space-y-1">
+                <p>
+                  Ce certificat est établi sur la base des observations officielles instrumentales du réseau national Météo-France (normes OMM).
+                </p>
+                <p className="text-slate-500">
+                  Document officiel opposable délivré par Météo Climat PRO.
+                </p>
+              </div>
+              <div className="text-right border-l border-slate-200 pl-3">
+                <span className="text-[7pt] font-bold text-slate-500 block">Expertise certifiée par :</span>
+                <strong className="text-[8.5pt] font-black text-slate-950 block">Monsieur Patrick MARLIÈRE</strong>
+                <span className="text-[6.5pt] text-sky-900 font-bold bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200 inline-block mt-0.5">
+                  Directeur Météo-Climat Pro
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Sources et Méthodologie */}
+          <div>
+            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
               5. Sources et Méthodologie
             </h2>
             <div className="border border-slate-200 rounded-xl p-2 bg-slate-50/60 text-[7pt] text-slate-600 space-y-0.5">
@@ -389,7 +418,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer officiel page 2 */}
-        <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[7.5pt] text-slate-500">
+        <div className="pt-1.5 border-t border-slate-200 flex justify-between items-center text-[7.5pt] text-slate-500">
           <p className="font-bold text-slate-700">Météo Climat PRO — Dossier d'Expertise {reference}</p>
           <p className="font-black text-slate-900">Page 2 / 2</p>
         </div>

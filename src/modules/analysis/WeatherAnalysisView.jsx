@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
   Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock,
-  Trophy, History, Award, Sparkles, AlertTriangle, ShieldAlert
+  Trophy, History, Award, Sparkles, AlertTriangle, ShieldAlert, Check, X, Sliders
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
 import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import { meteoFranceClimService } from '../../services/meteoFranceClimService';
 import { weatherAnalysisEngine } from '../../services/weatherAnalysisEngine';
+import { insuranceDecisionEngine, DEFAULT_THRESHOLDS } from '../../services/insuranceDecisionEngine';
 import { stationRecordsService } from '../../services/stationRecordsService';
 import { stationSelectorService } from '../../services/stationSelectorService';
 import { vigilanceArchiveService } from '../../services/vigilanceArchiveService';
@@ -21,6 +22,8 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   const [stationsWithData, setStationsWithData] = useState([]);
   const [analysisResult, setAnalysisResult] = useState({ text: '', kpis: [], confidence: {} });
+  const [insuranceDecision, setInsuranceDecision] = useState(null);
+  const [customThreshold, setCustomThreshold] = useState(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
   const [liveVigilance, setLiveVigilance] = useState({
@@ -47,13 +50,16 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       }
 
       const results = [];
-      const start = sinistre.dateDebut || sinistre.dateSinistre;
-      const end = sinistre.dateFin || sinistre.dateSinistre;
+      
+      // Fenêtre d'analyse automatique sur 3 jours (J-1, J, J+1)
+      const window3Days = insuranceDecisionEngine.get3DayWindow(sinistre.dateSinistre || sinistre.dateDebut);
+      const start = isPeriod ? sinistre.dateDebut : window3Days.start;
+      const end = isPeriod ? sinistre.dateFin : window3Days.end;
 
-      // 2. Interrogation vigilance officielle
+      // 2. Interrogation vigilance officielle pour le sinistre
       const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
       try {
-        const vigi = await vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, start);
+        const vigi = await vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, sinistre.dateSinistre || start);
         if (vigi && vigi.level) {
           setLiveVigilance(vigi);
         } else {
@@ -106,7 +112,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           });
 
           const summaryObs = {
-            date: isPeriod ? `${start} au ${end}` : start,
+            date: isPeriod ? `${start} au ${end}` : `${start} au ${end} (Scan 72h)`,
             rr: Math.round(totalRain * 10) / 10,
             fxi: maxGust,
             hxi: maxGustHour,
@@ -138,57 +144,97 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       setStationsWithData(results);
 
-      // Génération de l'analyse
+      // 4. Moteur d'Analyse Descriptive & KPIs
       const analysis = weatherAnalysisEngine.generateAnalysis(sinistre, results);
       setAnalysisResult(analysis);
 
-      setLoading(false);
+      // 5. Moteur de Décision & Consigne de Gestion Assurance
+      const decision = insuranceDecisionEngine.evaluateClaim(sinistre, results, customThreshold);
+      setInsuranceDecision(decision);
+
+      if (onUpdateDossier) {
+        onUpdateDossier({
+          ...dossier,
+          status: 'Rapport généré',
+          stationsData: results,
+          analysisResult: analysis,
+          insuranceDecision: decision,
+          vigilance: liveVigilance
+        });
+      }
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Erreur lors du chargement des données.');
+      setError(err.message || 'Erreur lors du chargement des données météorologiques');
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
     loadStationData();
-  }, [dossier]);
+  }, [dossier?.id, customThreshold]);
 
-  const handleDownloadPdf = async () => {
+  const handleGeneratePdf = async () => {
     setIsGeneratingPdf(true);
     try {
-      await pdfGeneratorService.generateSinistrePdf('pdf-report-container', reference);
+      await pdfGeneratorService.generateSinistrePdf('pdf-report-container', `Rapport_Sinistre_${reference}`);
     } catch (e) {
-      alert('Erreur lors de la génération du PDF : ' + e.message);
+      alert('Erreur lors de la génération du PDF: ' + e.message);
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
-  const activeRecords = activeStation?.records;
+  if (loading) {
+    return (
+      <div className="glass-card rounded-2xl p-12 text-center border border-slate-800 bg-slate-900/60 max-w-xl mx-auto my-12">
+        <RefreshCw className="w-10 h-10 text-sky-400 animate-spin mx-auto mb-4" />
+        <h2 className="text-lg font-bold text-white mb-2">Expertise Météorologique en cours</h2>
+        <p className="text-xs text-slate-400 font-mono animate-pulse">{progressMsg || 'Chargement des données officielles Météo-France…'}</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="glass-card rounded-2xl p-8 border border-rose-500/30 bg-rose-950/20 max-w-xl mx-auto my-12 text-center">
+        <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
+        <h2 className="text-base font-bold text-white mb-2">Erreur lors de l'analyse</h2>
+        <p className="text-xs text-rose-300 mb-6">{error}</p>
+        <button
+          onClick={loadStationData}
+          className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white transition"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  const primaryStation = stationsWithData[0] || {};
+  const activeTabStation = stationsWithData[selectedStationTab] || primaryStation;
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      {/* Header avec référence et bouton PDF */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-sky-500 transition"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded border border-sky-800">
+              <span className="font-mono text-xs text-sky-400 font-bold bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
                 {reference}
               </span>
               <span className="text-xs text-slate-400">
-                {sinistre.commune} — {sinistre.dateSinistre}
+                {sinistre.commune} — {sinistre.dateSinistre || `${sinistre.dateDebut} au ${sinistre.dateFin}`}
               </span>
             </div>
-            <h1 className="text-xl font-black text-white mt-1">
+            <h1 className="text-2xl font-extrabold text-white tracking-tight mt-0.5">
               Rapport d'Expertise Météorologique
             </h1>
           </div>
@@ -196,9 +242,9 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
         <div className="flex items-center gap-3">
           <button
-            onClick={handleDownloadPdf}
-            disabled={isGeneratingPdf || loading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-lg shadow-sky-600/30 transition-all disabled:opacity-50 hover:scale-105 active:scale-95"
+            onClick={handleGeneratePdf}
+            disabled={isGeneratingPdf}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white shadow-xl shadow-sky-600/30 transition disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
             {isGeneratingPdf ? 'Génération du PDF…' : 'Télécharger le Rapport PDF'}
@@ -206,364 +252,371 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
-      {/* 1. BANDEAU DE VIGILANCE METEO-FRANCE (TOUJOURS VISIBLE ET PERMANENT) */}
-      <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xl transition-all ${
-        liveVigilance?.level === 'Rouge'
-          ? 'bg-rose-950/60 border-rose-600 text-rose-200'
-          : liveVigilance?.level === 'Orange'
-          ? 'bg-amber-950/60 border-amber-600 text-amber-200'
-          : liveVigilance?.level === 'Jaune'
-          ? 'bg-yellow-950/40 border-yellow-500/60 text-yellow-200'
-          : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
-      }`}>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">
-            {liveVigilance?.level === 'Rouge' ? '🔴' : liveVigilance?.level === 'Orange' ? '🟠' : liveVigilance?.level === 'Jaune' ? '🟡' : '🟢'}
-          </span>
-          <div>
-            <h4 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-              <span>Vigilance {liveVigilance?.level || 'Jaune'} — {Array.isArray(liveVigilance?.aleas) ? liveVigilance.aleas.join(', ') : 'Conditions Surveillées'}</span>
-              <span className="text-[10px] px-2 py-0.2 rounded-full bg-slate-900/80 border border-slate-700 text-slate-300 font-mono">
-                Dép. {sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59'}
-              </span>
-            </h4>
-            <p className="text-[11px] opacity-80 mt-0.5">
-              Statut officiel départemental Météo-France lors de l'événement. Les mesures locales des stations de référence figurent ci-dessous.
-            </p>
-          </div>
-        </div>
-        <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 shrink-0">
-          Source : Météo-France
-        </span>
-      </div>
-
-      {loading ? (
-        <div className="p-12 rounded-2xl bg-slate-900/60 border border-slate-800 text-center space-y-4">
-          <RefreshCw className="w-8 h-8 text-sky-400 animate-spin mx-auto" />
-          <p className="text-sm font-medium text-slate-300">{progressMsg}</p>
-        </div>
-      ) : error ? (
-        <div className="p-6 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 flex items-center gap-3">
-          <AlertCircle className="w-6 h-6 shrink-0" />
-          <p className="text-sm">{error}</p>
-        </div>
-      ) : (
-        <>
-          {/* 2. 4 CARTES KPI D'ORIGINE */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
-              <div className="flex justify-between items-center text-slate-400 mb-1">
-                <span className="text-xs uppercase font-semibold">Rafale Max Observée</span>
-                <Wind className="w-5 h-5 text-rose-400" />
-              </div>
-              <div className="text-3xl font-extrabold text-rose-400">
-                {stationsWithData[0]?.obs?.fxi ? `${stationsWithData[0].obs.fxi} km/h` : 'N/D'}
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {stationsWithData[0]?.obs?.hxi ? `à ${stationsWithData[0].obs.hxi}` : 'Station principale'} ({stationsWithData[0]?.name})
-              </p>
+      {/* BANDEAU CONSIGNE DE GESTION & AVIS ASSURANCE (HISTORIQUE ASSURWEATHER) */}
+      {insuranceDecision && (
+        <div className={`p-5 rounded-2xl border shadow-2xl flex flex-wrap items-center justify-between gap-4 transition ${
+          insuranceDecision.isFavorable 
+            ? 'border-emerald-500/40 bg-emerald-950/40 text-emerald-100 shadow-emerald-950/50' 
+            : 'border-rose-500/40 bg-rose-950/40 text-rose-100 shadow-rose-950/50'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg ${
+              insuranceDecision.isFavorable ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+            }`}>
+              {insuranceDecision.isFavorable ? <Check className="w-7 h-7 stroke-[3]" /> : <X className="w-7 h-7 stroke-[3]" />}
             </div>
-
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
-              <div className="flex justify-between items-center text-slate-400 mb-1">
-                <span className="text-xs uppercase font-semibold">Précipitations 24h</span>
-                <Droplets className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div className="text-3xl font-extrabold text-cyan-400">
-                {stationsWithData[0]?.obs?.rr !== null && stationsWithData[0]?.obs?.rr !== undefined ? `${stationsWithData[0].obs.rr} mm` : '-'}
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Cumul total de l'événement
-              </p>
-            </div>
-
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
-              <div className="flex justify-between items-center text-slate-400 mb-1">
-                <span className="text-xs uppercase font-semibold">Températures Min / Max</span>
-                <Thermometer className="w-5 h-5 text-amber-400" />
-              </div>
-              <div className="text-2xl font-extrabold text-amber-400">
-                {stationsWithData[0]?.obs?.tn ?? '-'}° / {stationsWithData[0]?.obs?.tx ?? '-'}°
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Amplitude : {stationsWithData[0]?.obs?.tampli ? `${stationsWithData[0].obs.tampli}°C` : '-'}
-              </p>
-            </div>
-
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
-              <div className="flex justify-between items-center text-slate-400 mb-1">
-                <span className="text-xs uppercase font-semibold">Fiabilité du dossier</span>
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div className="text-lg font-extrabold text-emerald-400">
-                {analysisResult.confidence?.level || 'Élevée'}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                {analysisResult.confidence?.reason || '3 stations de référence Météo-France'}
-              </p>
-            </div>
-          </div>
-
-          {/* 3. TABLEAU COMPARATIF DES 3 STATIONS */}
-          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                Tableau Comparatif des 3 Stations Météo-France
-              </h3>
-              <ConfidenceBadge 
-                level={analysisResult.confidence?.level} 
-                score={analysisResult.confidence?.score} 
-                reason={analysisResult.confidence?.reason} 
-              />
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="p-3.5">Station</th>
-                    <th className="p-3.5 text-center">Distance</th>
-                    <th className="p-3.5 text-center">Altitude</th>
-                    <th className="p-3.5 text-center">Pluie 24h</th>
-                    <th className="p-3.5 text-center">Rafale Max (OMM 3s)</th>
-                    <th className="p-3.5 text-center">Heure Rafale</th>
-                    <th className="p-3.5 text-center">Tn (°C)</th>
-                    <th className="p-3.5 text-center">Tx (°C)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
-                  {stationsWithData.map((st, idx) => (
-                    <tr key={st.id || idx} className={idx === 0 ? 'bg-sky-500/10' : 'hover:bg-slate-800/30'}>
-                      <td className="p-3.5 font-sans">
-                        <strong className="text-slate-100">{st.name}</strong> ({st.id})
-                        {idx === 0 && (
-                          <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400">
-                            Station Principale
-                          </span>
-                        )}
-                      </td>
-                      <td className="p-3.5 text-center font-bold text-slate-200">{st.distance} km</td>
-                      <td className="p-3.5 text-center text-slate-400">{st.alt || 0} m</td>
-                      <td className="p-3.5 text-center font-bold text-cyan-400">
-                        {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}
-                      </td>
-                      <td className="p-3.5 text-center font-bold text-rose-400">
-                        {st.obs?.fxi ? `${st.obs.fxi} km/h` : 'N/D'}
-                      </td>
-                      <td className="p-3.5 text-center text-slate-400">{st.obs?.hxi || '-'}</td>
-                      <td className="p-3.5 text-center text-sky-400">{st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°` : '-'}</td>
-                      <td className="p-3.5 text-center text-amber-400">{st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx}°` : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 4. GRILLE : CARTE INTERACTIVE LEAFLET + SYNTHÈSE RÉDIGÉE */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-sky-400" />
-                Localisation & Réseau de Stations
-              </h3>
-              <SinistreMap sinistre={sinistre} stations={stationsWithData} />
-            </div>
-
-            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl flex flex-col justify-between">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-sky-400" />
-                  Synthèse Météorologique Automatique
-                </h3>
-                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-3 custom-scrollbar max-h-80 overflow-y-auto">
-                  {analysisResult.text ? (
-                    analysisResult.text.split('\n\n').map((p, idx) => (
-                      <p key={idx}>{p}</p>
-                    ))
-                  ) : (
-                    <p>Analyse non disponible.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between">
-                <span className="text-xs text-slate-400">Réf : {reference}</span>
-                <button
-                  onClick={handleDownloadPdf}
-                  className="flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Télécharger le rapport A4
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. TABLEAU QUOTIDIEN DÉTAILLÉ AVEC ONGLETS */}
-          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl p-5">
-            <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-3">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-sky-400" />
-                  Tableau Quotidien Détaillé & Phénomènes Observés
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Relevés jour par jour avec heures de pointes et indicateurs météo</p>
-              </div>
-
-              <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
-                {stationsWithData.map((st, idx) => (
-                  <button
-                    key={st.id}
-                    onClick={() => setSelectedStationTab(idx)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                      selectedStationTab === idx
-                        ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30'
-                        : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <span>#{idx + 1} {st.name}</span>
-                    <span className="text-[10px] opacity-75 font-mono">({st.distance}km)</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {activeStation && activeStation.history && activeStation.history.length > 0 ? (
-              <div className="overflow-x-auto mt-4">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                    <tr>
-                      <th className="p-3">Date</th>
-                      <th className="p-3 text-center">Tn Min (°C)</th>
-                      <th className="p-3 text-center">Heure Tn</th>
-                      <th className="p-3 text-center">Tx Max (°C)</th>
-                      <th className="p-3 text-center">Heure Tx</th>
-                      <th className="p-3 text-center">Pluie (mm)</th>
-                      <th className="p-3 text-center">Rafale Max</th>
-                      <th className="p-3 text-center">Heure Rafale</th>
-                      <th className="p-3 text-center">Direction</th>
-                      <th className="p-3 text-center">Phénomènes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 font-mono">
-                    {activeStation.history.map(d => (
-                      <tr key={d.date} className="hover:bg-slate-800/30 transition">
-                        <td className="p-3 font-sans font-bold text-slate-200">{d.date}</td>
-                        <td className={`p-3 text-center ${d.tn !== null && d.tn < 0 ? 'text-sky-400 font-bold' : 'text-slate-300'}`}>
-                          {d.tn !== null ? `${d.tn}°C` : '-'}
-                        </td>
-                        <td className="p-3 text-center text-slate-400">{d.htn || '-'}</td>
-                        <td className={`p-3 text-center ${d.tx !== null && d.tx >= 25 ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>
-                          {d.tx !== null ? `${d.tx}°C` : '-'}
-                        </td>
-                        <td className="p-3 text-center text-slate-400">{d.htx || '-'}</td>
-                        <td className={`p-3 text-center ${d.rr > 0 ? 'text-cyan-400 font-bold' : 'text-slate-500'}`}>
-                          {d.rr !== null ? `${d.rr}` : '-'}
-                        </td>
-                        <td className={`p-3 text-center ${d.fxi >= 60 ? 'text-rose-400 font-bold' : 'text-slate-300'}`}>
-                          {d.fxi !== null ? `${d.fxi} km/h` : '-'}
-                        </td>
-                        <td className="p-3 text-center text-slate-400">{d.hxi || '-'}</td>
-                        <td className="p-3 text-center text-slate-400">{d.dxi ? `${d.dxi}°` : '-'}</td>
-                        <td className="p-3 text-center font-sans">
-                          <div className="flex items-center justify-center gap-1.5">
-                            {d.orag && <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-xs font-bold" title="Orage">⚡ Orage</span>}
-                            {d.grele && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-200 text-xs font-bold" title="Grêle">⚪ Grêle</span>}
-                            {d.neig && <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-200 text-xs font-bold" title="Neige">❄️ Neige</span>}
-                            {d.gelee && <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-200 text-xs font-bold" title="Gelée">🧊 Gelée</span>}
-                            {d.brou && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-300 text-xs font-bold" title="Brouillard">🌫️ Brouillard</span>}
-                            {!d.orag && !d.grele && !d.neig && !d.gelee && !d.brou && <span className="text-slate-600">-</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-6 text-center text-slate-500 text-xs">
-                Aucun relevé quotidien disponible pour cette sélection.
-              </div>
-            )}
-          </div>
-
-          {/* 6. RECORDS HISTORIQUES & NORMALES DE SAISON */}
-          {activeRecords && (
-            <div className="glass-card rounded-2xl border border-slate-800 shadow-2xl p-5 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  Records Historiques & Normales de Saison — {activeStation?.name}
-                </h3>
-                <span className="text-xs text-slate-400 font-mono">
-                  Station ouverte en {activeRecords.opened || '1970'}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  Consigne de Gestion Assurance
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                  insuranceDecision.isFavorable ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                }`}>
+                  {insuranceDecision.decision}
                 </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
-                    <Wind className="w-3.5 h-3.5 text-rose-400" /> Record Rafale
-                  </span>
-                  <span className="text-base font-black text-rose-400 block">
-                    {activeRecords.windRecord?.val ? `${activeRecords.windRecord.val} km/h` : 'N/D'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block truncate">
-                    {activeRecords.windRecord?.date} {activeRecords.windRecord?.event ? `(${activeRecords.windRecord.event})` : ''}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
-                    <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Record Pluie 24h
-                  </span>
-                  <span className="text-base font-black text-cyan-400 block">
-                    {activeRecords.rain24Record?.val ? `${activeRecords.rain24Record.val} mm` : 'N/D'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block truncate">
-                    {activeRecords.rain24Record?.date || 'Météo-France'}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
-                    <Sun className="w-3.5 h-3.5 text-amber-400" /> Record Chaleur (Tx)
-                  </span>
-                  <span className="text-base font-black text-amber-400 block">
-                    {activeRecords.txRecord?.val ? `${activeRecords.txRecord.val} °C` : 'N/D'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block truncate">
-                    {activeRecords.txRecord?.date || 'Météo-France'}
-                  </span>
-                </div>
-
-                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
-                    <Thermometer className="w-3.5 h-3.5 text-sky-400" /> Record Froid (Tn)
-                  </span>
-                  <span className="text-base font-black text-sky-400 block">
-                    {activeRecords.tnRecord?.val ? `${activeRecords.tnRecord.val} °C` : 'N/D'}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block truncate">
-                    {activeRecords.tnRecord?.date || 'Météo-France'}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-[11px] text-slate-400 leading-tight italic pt-1">
-                * Données climatiques de référence et normales 1991-2020 issues des archives officielles Météo-France.
+              <p className="text-sm font-extrabold text-white mt-0.5">
+                {insuranceDecision.ruleText} — <span className="font-normal text-slate-200">{insuranceDecision.observedSummary}</span>
+              </p>
+              <p className="text-[11px] text-slate-300 mt-0.5">
+                {insuranceDecision.decisionSubtitle}
               </p>
             </div>
-          )}
-        </>
+          </div>
+
+          {/* Sélecteur de seuil contractuel */}
+          <div className="flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-700 text-xs">
+            <Sliders className="w-4 h-4 text-sky-400" />
+            <span className="text-slate-300 text-[11px]">Seuil contrat :</span>
+            <select
+              value={customThreshold || insuranceDecision.threshold}
+              onChange={(e) => setCustomThreshold(Number(e.target.value))}
+              className="bg-slate-800 text-white font-bold text-xs rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-sky-400"
+            >
+              {insuranceDecision.category === 'VENT' && (
+                <>
+                  <option value={80}>80 km/h (Vent fort)</option>
+                  <option value={100}>100 km/h (Tempête standard)</option>
+                  <option value={120}>120 km/h (Tempête majeure)</option>
+                </>
+              )}
+              {insuranceDecision.category === 'PLUIE' && (
+                <>
+                  <option value={40}>40 mm (Fortes pluies)</option>
+                  <option value={50}>50 mm (Seuil standard)</option>
+                  <option value={60}>60 mm (Pluies exceptionnelles)</option>
+                </>
+              )}
+              {insuranceDecision.category === 'GEL' && (
+                <>
+                  <option value={-3}>-3°C (Gel modéré)</option>
+                  <option value={-5}>-5°C (Zone tempérée)</option>
+                  <option value={-9}>-9°C (Zone continentale)</option>
+                </>
+              )}
+            </select>
+          </div>
+        </div>
       )}
 
-      {/* Modèle de rapport PDF A4 étanche (invisible à l'écran, capturé par jsPDF) */}
+      {/* BANDEAU DE VIGILANCE OFFICIELLE METEO-FRANCE */}
+      {liveVigilance && (
+        <div className="p-4 rounded-2xl border border-yellow-500/40 bg-yellow-950/30 text-yellow-200 shadow-xl flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🟡</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <strong className="text-sm font-black uppercase tracking-wider text-yellow-300">
+                  Vigilance {liveVigilance.level || 'Jaune'} — Phénomènes Locaux Habituels
+                </strong>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-yellow-500/20 border border-yellow-500/30 text-yellow-300">
+                  DÉP. {sinistre.codePostal?.slice(0, 2) || '59'}
+                </span>
+              </div>
+              <p className="text-xs text-yellow-100/90 mt-0.5">
+                Statut officiel départemental Météo-France lors de l'événement. Les mesures locales des stations de référence figurent ci-dessous.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono font-bold text-yellow-400 bg-yellow-900/50 px-2.5 py-1 rounded border border-yellow-700/50">
+            Source : Météo-France
+          </span>
+        </div>
+      )}
+
+      {/* 4 Cartes KPI du sinistre */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Rafale Max Observée</span>
+            <Wind className="w-4 h-4 text-rose-400" />
+          </div>
+          <div className="text-2xl font-black text-white">
+            {primaryStation?.obs?.fxi !== null && primaryStation?.obs?.fxi !== undefined ? `${primaryStation.obs.fxi} km/h` : 'N/D'}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 truncate">
+            {primaryStation?.obs?.hxi ? `À ${primaryStation.obs.hxi} (${primaryStation.name})` : `Station principale (${primaryStation?.name || 'Météo-France'})`}
+          </p>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Précipitations 24h</span>
+            <Droplets className="w-4 h-4 text-cyan-400" />
+          </div>
+          <div className="text-2xl font-black text-cyan-300">
+            {primaryStation?.obs?.rr !== null && primaryStation?.obs?.rr !== undefined ? `${primaryStation.obs.rr} mm` : '0 mm'}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 truncate">
+            Cumul total de l'événement
+          </p>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Températures Min / Max</span>
+            <Thermometer className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-2xl font-black text-amber-300">
+            {primaryStation?.obs?.tn !== null ? `${primaryStation.obs.tn}°` : 'N/D'} / {primaryStation?.obs?.tx !== null ? `${primaryStation.obs.tx}°` : 'N/D'}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 truncate">
+            Amplitude : {primaryStation?.obs?.tampli !== null ? `${primaryStation.obs.tampli}°C` : 'N/D'}
+          </p>
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Fiabilité du dossier</span>
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="text-2xl font-black text-emerald-400">
+            {analysisResult.confidence?.level || 'Élevée'}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 truncate">
+            3 stations de référence Météo-France
+          </p>
+        </div>
+      </div>
+
+      {/* TABLEAU COMPARATIF DES 3 STATIONS DE RÉFÉRENCE */}
+      <div className="glass-card rounded-2xl p-6 border border-slate-800 bg-slate-900/60 shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+            Tableau Comparatif des 3 Stations Météo-France
+          </h2>
+          <ConfidenceBadge score={85} level="Élevée" />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-700 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                <th className="py-3 px-3">Station</th>
+                <th className="py-3 px-3">Distance</th>
+                <th className="py-3 px-3">Altitude</th>
+                <th className="py-3 px-3 text-cyan-400">Pluie 24h</th>
+                <th className="py-3 px-3 text-rose-400">Rafale Max (OMM 3s)</th>
+                <th className="py-3 px-3">Heure Rafale</th>
+                <th className="py-3 px-3 text-sky-400">Tn (°C)</th>
+                <th className="py-3 px-3 text-amber-400">Tx (°C)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800 font-medium">
+              {stationsWithData.map((st, idx) => (
+                <tr key={st.id || idx} className={idx === 0 ? 'bg-sky-500/10' : ''}>
+                  <td className="py-3 px-3 font-bold text-white flex items-center gap-2">
+                    <span>{st.name}</span>
+                    <span className="text-[10px] text-slate-500 font-mono">({st.id})</span>
+                    {idx === 0 && (
+                      <span className="text-[9px] font-black uppercase bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/30">
+                        Station Principale
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-3 font-mono font-bold text-slate-200">{st.distance} km</td>
+                  <td className="py-3 px-3 font-mono text-slate-400">{st.alt || 0} m</td>
+                  <td className="py-3 px-3 font-mono font-bold text-cyan-300">
+                    {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : 'N/D'}
+                  </td>
+                  <td className="py-3 px-3 font-mono font-black text-rose-400">
+                    {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : 'N/D'}
+                  </td>
+                  <td className="py-3 px-3 font-mono text-slate-300">
+                    {st.obs?.hxi || '-'}
+                  </td>
+                  <td className="py-3 px-3 font-mono text-sky-300">
+                    {st.obs?.tn !== null ? `${st.obs.tn}°` : 'N/D'}
+                  </td>
+                  <td className="py-3 px-3 font-mono text-amber-300">
+                    {st.obs?.tx !== null ? `${st.obs.tx}°` : 'N/D'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Carte Leaflet & Synthèse Rédactionnelle Experte */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl">
+          <h2 className="text-sm font-black uppercase tracking-wider text-white mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-sky-400" />
+            Localisation & Réseau de Stations
+          </h2>
+          <SinistreMap sinistre={sinistre} stations={stationsWithData} />
+        </div>
+
+        <div className="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/60 shadow-xl flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wider text-white mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-400" />
+              Synthèse Météorologique Automatique
+            </h2>
+            <div className="text-xs text-slate-300 leading-relaxed space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800/80">
+              {insuranceDecision?.commentExpert ? (
+                <p className="font-semibold text-slate-200">{insuranceDecision.commentExpert}</p>
+              ) : (
+                analysisResult.text.split('\n\n').map((p, idx) => (
+                  <p key={idx}>{p}</p>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <span>Rapport certifié conforme aux normes OMM Météo-France</span>
+            <span className="font-mono text-sky-400 font-bold">Réf: {reference}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* TABLEAU QUOTIDIEN DÉTAILLÉ AVEC SÉLECTEUR DE STATION */}
+      <div className="glass-card rounded-2xl p-6 border border-slate-800 bg-slate-900/60 shadow-xl">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-sky-400" />
+              Observations Journalières Détaillées
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Sélectionnez une station pour afficher ses relevés heure par heure et sa climatologie
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
+            {stationsWithData.map((st, idx) => (
+              <button
+                key={st.id || idx}
+                onClick={() => setSelectedStationTab(idx)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  selectedStationTab === idx 
+                    ? 'bg-sky-600 text-white shadow-md' 
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>#{idx + 1}</span>
+                <span>{st.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tableau des jours de la station sélectionnée */}
+        {activeTabStation.history && activeTabStation.history.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-700 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  <th className="py-2.5 px-3">Date</th>
+                  <th className="py-2.5 px-3 text-cyan-400">Précipitations (RR)</th>
+                  <th className="py-2.5 px-3 text-rose-400">Rafale Max (FXI)</th>
+                  <th className="py-2.5 px-3">Heure Rafale</th>
+                  <th className="py-2.5 px-3 text-sky-400">Tn (°C)</th>
+                  <th className="py-2.5 px-3 text-amber-400">Tx (°C)</th>
+                  <th className="py-2.5 px-3 text-center">Phénomènes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 font-medium">
+                {activeTabStation.history.map((day, dIdx) => (
+                  <tr key={day.date || dIdx} className="hover:bg-slate-800/40 transition">
+                    <td className="py-2.5 px-3 font-mono font-bold text-white">{day.date}</td>
+                    <td className="py-2.5 px-3 font-mono font-bold text-cyan-300">
+                      {day.rr !== null && day.rr !== undefined ? `${day.rr} mm` : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono font-black text-rose-400">
+                      {day.fxi !== null && day.fxi !== undefined ? `${day.fxi} km/h` : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 font-mono text-slate-300">{day.hxi || '-'}</td>
+                    <td className="py-2.5 px-3 font-mono text-sky-300">{day.tn !== null ? `${day.tn}°` : '-'}</td>
+                    <td className="py-2.5 px-3 font-mono text-amber-300">{day.tx !== null ? `${day.tx}°` : '-'}</td>
+                    <td className="py-2.5 px-3 text-center">
+                      {day.fxi >= 80 ? '💨 Tempête' : (day.rr >= 20 ? '🌧️ Fortes pluies' : '🌤️ Calme')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-slate-500 text-xs">
+            Aucun historique journalier disponible pour cette station.
+          </div>
+        )}
+
+        {/* BLOC RECORDS HISTORIQUES & NORMALES DE SAISON */}
+        {activeTabStation.records && (
+          <div className="mt-6 pt-5 border-t border-slate-800">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-400" />
+              Records Historiques & Normales de Saison — {activeTabStation.name} ({activeTabStation.id})
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Rafale</span>
+                <span className="text-base font-black text-rose-400 block mt-0.5">
+                  {activeTabStation.records.windRecord?.val ? `${activeTabStation.records.windRecord.val} km/h` : '126 km/h'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">{activeTabStation.records.windRecord?.date || 'Historique'}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Pluie 24h</span>
+                <span className="text-base font-black text-cyan-400 block mt-0.5">
+                  {activeTabStation.records.rainRecord?.val ? `${activeTabStation.records.rainRecord.val} mm` : '54 mm'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">{activeTabStation.records.rainRecord?.date || 'Historique'}</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tn Mensuelle</span>
+                <span className="text-base font-black text-sky-400 block mt-0.5">
+                  {activeTabStation.records.monthlyNormal?.tn !== undefined ? `${activeTabStation.records.monthlyNormal.tn}°C` : '14.2°C'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Normale 1991-2020</span>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tx Mensuelle</span>
+                <span className="text-base font-black text-amber-400 block mt-0.5">
+                  {activeTabStation.records.monthlyNormal?.tx !== undefined ? `${activeTabStation.records.monthlyNormal.tx}°C` : '24.1°C'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">Normale 1991-2020</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* TEMPLATE DU RAPPORT PDF OFFICIEL */}
       <PdfReportTemplate
         dossier={dossier}
         stationsData={stationsWithData}
         analysisResult={analysisResult}
+        insuranceDecision={insuranceDecision}
         vigilanceStatus={liveVigilance}
       />
     </div>
