@@ -572,26 +572,36 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                   <th className="pb-2.5 px-3">Rafale Max</th>
                   <th className="pb-2.5 px-3">Heure</th>
                   <th className="pb-2.5 px-3">Tn / Tx</th>
-                  <th className="pb-2.5 px-3 text-center">Caractère</th>
+                  <th className="pb-2.5 px-3 text-center">Qualification de l'Événement</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {activeTabStation.history.map((day, dIdx) => (
-                  <tr key={day.date || dIdx} className="hover:bg-slate-50/60 transition">
-                    <td className="py-2.5 px-3 font-mono text-slate-900">{day.date}</td>
-                    <td className="py-2.5 px-3 text-slate-700">
-                      {day.rr !== null && day.rr !== undefined ? `${day.rr} mm` : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900">
-                      {day.fxi !== null && day.fxi !== undefined ? `${day.fxi} km/h` : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-slate-400">{day.hxi || '-'}</td>
-                    <td className="py-2.5 px-3 font-mono text-slate-600">{day.tn !== null ? `${day.tn}°` : '-'} / {day.tx !== null ? `${day.tx}°` : '-'}</td>
-                    <td className="py-2.5 px-3 text-center text-slate-500 text-[11px]">
-                      {day.fxi >= 80 ? '💨 Vent fort' : (day.rr >= 20 ? '🌧️ Pluvieux' : '🌤️ Calme')}
-                    </td>
-                  </tr>
-                ))}
+                {activeTabStation.history.map((day, dIdx) => {
+                  let qualif = 'Conditions habituelles';
+                  if (day.fxi >= 100) qualif = '💨 Tempête / Vent violent';
+                  else if (day.fxi >= 80) qualif = '💨 Coup de vent';
+                  else if (day.rr >= 40) qualif = '🌧️ Précipitations intenses';
+                  else if (day.rr >= 15) qualif = '🌧️ Épisode pluvieux';
+                  else if (day.tn !== null && day.tn <= -3) qualif = '❄️ Gel sous abri';
+                  else if (day.tx !== null && day.tx >= 33) qualif = '☀️ Forte chaleur';
+
+                  return (
+                    <tr key={day.date || dIdx} className="hover:bg-slate-50/60 transition">
+                      <td className="py-2.5 px-3 font-mono text-slate-900">{day.date}</td>
+                      <td className="py-2.5 px-3 text-slate-700">
+                        {day.rr !== null && day.rr !== undefined ? `${day.rr} mm` : '-'}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">
+                        {day.fxi !== null && day.fxi !== undefined ? `${day.fxi} km/h` : '-'}
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-slate-400">{day.hxi || '-'}</td>
+                      <td className="py-2.5 px-3 font-mono text-slate-600">{day.tn !== null ? `${day.tn}°` : '-'} / {day.tx !== null ? `${day.tx}°` : '-'}</td>
+                      <td className="py-2.5 px-3 text-center text-slate-700 text-[11px] font-semibold">
+                        {qualif}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
