@@ -24,7 +24,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const loadStationData = async () => {
     setLoading(true);
     setError(null);
-    setProgressMsg('Interrogation des stations Météo-France…');
+    setProgressMsg('Interrogation des 5 stations Météo-France…');
 
     try {
       const selected = dossier.selectedStations || [];
@@ -65,7 +65,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       setStationsWithData(results);
 
-      // Génération de l'analyse automatique
+      // Génération de l'analyse automatique sur les 5 postes
       const analysis = weatherAnalysisEngine.generateAnalysis(sinistre, results);
       setAnalysisResult(analysis);
 
@@ -82,8 +82,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     loadStationData();
   }, [dossier]);
 
-  // Référence intelligente pour les KPIs :
-  // Si la station 1 ne mesure pas le vent (ex: Douai), chercher la station la plus proche parmi les 3 qui mesure le vent !
+  // Référence intelligente parmi les 5 postes
   const bestWindStation = useMemo(() => {
     return stationsWithData.find(s => s.obs?.fxi !== null && s.obs?.fxi !== undefined) || stationsWithData[0] || null;
   }, [stationsWithData]);
@@ -156,7 +155,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white shadow-xl shadow-sky-600/30 transition disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            {isGeneratingPdf ? 'Génération du PDF…' : 'Générer le Rapport PDF A4'}
+            {isGeneratingPdf ? 'Génération du PDF…' : 'Générer le Rapport PDF Grand Public (A4)'}
           </button>
         </div>
       </div>
@@ -165,13 +164,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       {loading && (
         <div className="glass-card rounded-2xl p-8 border border-sky-500/30 flex flex-col items-center justify-center gap-3 text-sky-400">
           <RefreshCw className="w-8 h-8 animate-spin" />
-          <span className="text-sm font-semibold">{progressMsg || 'Interrogation Météo-France en cours…'}</span>
+          <span className="text-sm font-semibold">{progressMsg || 'Interrogation des 5 stations Météo-France…'}</span>
         </div>
       )}
 
       {!loading && (
         <>
-          {/* Cartes KPI Météorologiques Clés avec Référence Intelligente */}
+          {/* Cartes KPI Météorologiques Clés */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Rafale Max */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
@@ -216,26 +215,26 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               </p>
             </div>
 
-            {/* Fiabilité */}
+            {/* Fiabilité & Échantillonnage */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
               <div className="flex justify-between items-center text-slate-400 mb-1">
-                <span className="text-xs uppercase font-semibold">Fiabilité du dossier</span>
+                <span className="text-xs uppercase font-semibold">Réseau 5 Stations</span>
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
               </div>
               <div className="text-lg font-extrabold text-emerald-400">
                 {analysisResult.confidence?.level || 'Élevée'}
               </div>
               <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                {analysisResult.confidence?.reason || '3 stations de référence'}
+                {analysisResult.confidence?.reason || '5 stations de référence Météo-France'}
               </p>
             </div>
           </div>
 
-          {/* Tableau Comparatif des 3 Stations */}
+          {/* Tableau Comparatif des 5 Stations */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                Tableau Comparatif des 3 Stations Météo-France
+                Tableau Comparatif des 5 Stations Météo-France de Référence
               </h3>
               <ConfidenceBadge 
                 level={analysisResult.confidence?.level} 
@@ -289,12 +288,12 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* Grille : Carte + Analyse rédigée */}
+          {/* Grille : Carte interactive Leaflet + Synthèse rédigée */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-sky-400" />
-                Localisation & Réseau de Stations
+                Carte Géoréférencée (5 Postes & Valeurs Observées)
               </h3>
               <SinistreMap sinistre={sinistre} stations={stationsWithData} />
             </div>
@@ -303,7 +302,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2 mb-3">
                   <FileText className="w-4 h-4 text-sky-400" />
-                  Synthèse Météorologique Automatique
+                  Synthèse Technique & Argumentation Assurance
                 </h3>
                 <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-3 custom-scrollbar max-h-80 overflow-y-auto">
                   {analysisResult.text ? (
@@ -317,13 +316,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               </div>
 
               <div className="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between">
-                <span className="text-xs text-slate-400">Réf : {reference}</span>
+                <span className="text-xs text-slate-400">Réf. Dossier : {reference}</span>
                 <button
                   onClick={handleDownloadPdf}
                   className="flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Télécharger le rapport A4
+                  Télécharger le rapport A4 Certifié
                 </button>
               </div>
             </div>
@@ -331,7 +330,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </>
       )}
 
-      {/* Modèle de rapport PDF */}
+      {/* Modèle de rapport PDF Grand Public A4 */}
       <PdfReportTemplate
         dossier={dossier}
         stationsData={stationsWithData}

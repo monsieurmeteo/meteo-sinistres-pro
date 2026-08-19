@@ -1,8 +1,5 @@
 import stationDatabase from '../data/stationDatabase.json';
 
-/**
- * Calcul de la distance géodésique Haversine en kilomètres
- */
 function haversineDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Rayon de la terre en km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
@@ -22,7 +19,7 @@ export const stationSelectorService = {
   },
 
   /**
-   * Trouve et classe les meilleures stations autour d'un point géographique
+   * Trouve et classe les 5 meilleures stations autour d'un point géographique
    * Priorité : Complétude (Pluie + Vent + Rafale + Tn + Tx) > Distance > Écart d'altitude
    */
   findBestStations(targetLat, targetLon, targetAlt = 0) {
@@ -35,7 +32,6 @@ export const stationSelectorService = {
       if (!st.lat || !st.lon || (st.lat === 48.85 && st.lon === 2.35 && st.dept !== '75')) continue;
       const dist = haversineDistance(targetLat, targetLon, st.lat, st.lon);
       
-      // Détection anémomètre : les stations SYNOP/RADOME (terminant par 001, 002, 003, 004 ou typePoste 1) ont un anémomètre
       const isAnemoStation = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('003') || st.id.endsWith('004') || st.typePoste === 1;
       const hasRain = true;
       const hasWind = isAnemoStation;
@@ -52,35 +48,34 @@ export const stationSelectorService = {
       });
     }
 
-    // Cercles de recherche progressifs : 30 km -> 50 km -> 75 km -> 100 km
+    // Cercles de recherche progressifs : 30 km -> 50 km -> 75 km -> 100 km -> 150 km
     const radii = [30, 50, 75, 100, 150];
     let candidatePool = [];
 
     for (const r of radii) {
-      const inRadius = withDistance.filter(s => s.distance <= r && s.isComplete);
-      if (inRadius.length >= 3) {
+      const inRadius = withDistance.filter(s => s.distance <= r);
+      if (inRadius.length >= 5) {
         candidatePool = inRadius;
         break;
       }
     }
 
-    if (candidatePool.length < 3) {
-      candidatePool = withDistance.sort((a, b) => a.distance - b.distance).slice(0, 10);
+    if (candidatePool.length < 5) {
+      candidatePool = withDistance.sort((a, b) => a.distance - b.distance).slice(0, 15);
     }
 
-    // Tri de précision
+    // Tri de précision : Complétude en premier, distance en second (avec pondération altitude)
     candidatePool.sort((a, b) => {
       if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;
       if (Math.abs(a.distance - b.distance) > 5) return a.distance - b.distance;
       return a.altDiff - b.altDiff;
     });
 
-    const top3 = candidatePool.slice(0, 3);
-    const top3Ids = new Set(top3.map(s => s.id));
+    const top5 = candidatePool.slice(0, 5);
 
-    return top3.map((s, idx) => ({
+    return top5.map((s, idx) => ({
       ...s,
-      isTop3: true,
+      isTop5: true,
       rank: idx + 1
     }));
   }

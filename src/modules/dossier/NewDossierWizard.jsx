@@ -32,7 +32,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   const [sinistreType, setSinistreType] = useState(SINISTRE_TYPES[0]);
   const [customSinistreType, setCustomSinistreType] = useState('');
   
-  // Date par défaut : 03/08/2026 ou hier
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   const [dateSinistre, setDateSinistre] = useState(yesterday.toISOString().split('T')[0]);
@@ -52,10 +51,9 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   });
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
 
-  // Stations découvertes
+  // 5 Stations découvertes
   const [discoveredStations, setDiscoveredStations] = useState([]);
 
-  // Initialisation des stations
   useEffect(() => {
     if (selectedLocation) {
       const stations = stationSelectorService.findBestStations(selectedLocation.lat, selectedLocation.lon);
@@ -63,7 +61,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     }
   }, []);
 
-  // Recherche adresse en direct
   useEffect(() => {
     if (!addressQuery || addressQuery.trim().length < 2) {
       setAddressSuggestions([]);
@@ -80,7 +77,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     return () => clearTimeout(timer);
   }, [addressQuery]);
 
-  // Sélection d'une adresse
   const handleSelectAddress = (loc) => {
     setSelectedLocation(loc);
     setAddressQuery(loc.label);
@@ -97,7 +93,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     let stations = discoveredStations;
 
     if (!loc) {
-      // Fallback automatique sur Paris ou la requête
       loc = {
         label: addressQuery || 'France',
         city: addressQuery || 'Lille',
@@ -137,7 +132,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
         description,
         observations
       },
-      selectedStations: stations.slice(0, 3)
+      selectedStations: stations.slice(0, 5)
     };
 
     onSaveAndAnalyze(dossier);
@@ -152,7 +147,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             Nouveau Dossier de Sinistre
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Création d'une attestation météorologique conforme aux normes d'expertise d'assurance
+            Création d'une attestation météorologique certifiée conforme aux normes d'assurance
           </p>
         </div>
         <button
@@ -288,7 +283,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           {selectedLocation && (
             <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-sky-300">Point géoréférencé :</p>
+                <p className="text-xs font-bold text-sky-300">Point géoréférencé avec succès :</p>
                 <p className="text-sm font-semibold text-white mt-0.5">{selectedLocation.label}</p>
                 <p className="text-xs font-mono text-slate-400 mt-0.5">
                   Latitude : {selectedLocation.lat.toFixed(4)}°N | Longitude : {selectedLocation.lon.toFixed(4)}°E
@@ -298,29 +293,29 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             </div>
           )}
 
-          {/* 3 Stations découvertes automatiquement */}
+          {/* 5 Stations découvertes automatiquement */}
           {discoveredStations.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
-                <span>3 Stations Météo-France de référence retenues :</span>
-                <span className="text-emerald-400 text-[11px] font-normal">Capteurs certifiés Météo-France</span>
+                <span>5 Stations Météo-France de référence retenues :</span>
+                <span className="text-emerald-400 text-[11px] font-normal">Capteurs officiels Météo-France</span>
               </h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {discoveredStations.slice(0, 3).map((st, idx) => (
-                  <div key={st.id} className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/80">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                {discoveredStations.slice(0, 5).map((st, idx) => (
+                  <div key={st.id} className="p-3 rounded-xl bg-slate-900/80 border border-slate-700/80">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono">
-                          Station #{idx + 1}
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono">
+                          #{idx + 1}
                         </span>
-                        <strong className="block text-xs text-white font-bold mt-1.5">{st.name}</strong>
+                        <strong className="block text-xs text-white font-bold mt-1 truncate max-w-[100px]">{st.name}</strong>
                       </div>
                       <span className="text-xs font-extrabold text-sky-400">{st.distance} km</span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400 space-y-0.5">
-                      <p>Indicatif : <span className="font-mono text-slate-300">{st.id}</span></p>
-                      <p>Altitude : {st.alt} m</p>
+                    <div className="mt-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400 space-y-0.5">
+                      <p>ID : <span className="font-mono text-slate-300">{st.id}</span></p>
+                      <p>Alt : {st.alt} m</p>
                     </div>
                   </div>
                 ))}
@@ -394,7 +389,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             type="submit"
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white shadow-xl shadow-sky-600/30 transition transform hover:-translate-y-0.5"
           >
-            Lancer l'analyse météorologique Météo-France
+            Lancer l'analyse météorologique (5 Stations Météo-France)
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
