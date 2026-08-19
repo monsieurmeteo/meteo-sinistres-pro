@@ -47,7 +47,6 @@ export const stationSelectorService = {
       const isMajorAnemo = MAJOR_ANEMO_KEYWORDS.some(k => nameLower.includes(k));
       const isStandardAnemo = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('004') || st.typePoste === 1;
 
-      // Pour les sinistres vent : prioriser fortement les stations d'aérodrome/synoptiques pour éviter les "N/D"
       let qualityScore = 100;
       if (isMajorAnemo) qualityScore += 80;
       if (isStandardAnemo) qualityScore += 30;
@@ -67,7 +66,6 @@ export const stationSelectorService = {
     }
 
     if (needsWind) {
-      // Tri combinant distance et présence d'anémomètre
       qualifiedStations.sort((a, b) => {
         const scoreA = a.distance - (a.isAnemo ? 25 : 0);
         const scoreB = b.distance - (b.isAnemo ? 25 : 0);

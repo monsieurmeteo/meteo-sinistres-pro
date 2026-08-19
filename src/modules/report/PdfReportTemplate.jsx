@@ -317,9 +317,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </h2>
             <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/90 text-[8.5pt] text-slate-800 leading-relaxed space-y-1.5 shadow-2xs">
               {analysisResult?.text ? (
-                analysisResult.text.split('
-
-').map((p, idx) => (
+                analysisResult.text.split('\n\n').map((p, idx) => (
                   <p key={idx}>{p}</p>
                 ))
               ) : (
