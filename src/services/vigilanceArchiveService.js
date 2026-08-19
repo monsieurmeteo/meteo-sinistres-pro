@@ -9,27 +9,24 @@ const PHENO_ICONS = {
   "Canicule": "☀️",
   "Grand Froid": "🧊",
   "Avalanches": "🏔️",
-  "Vagues-submersion": "🌊",
-  "Phénomènes météo": "⚠️"
+  "Vagues-submersion": "🌊"
 };
 
 export const vigilanceArchiveService = {
   /**
-   * Récupère STRICTEMENT le niveau officiel émis par Météo-France
-   * 1. Cache instantané local pour les archives connues
-   * 2. Requête API Serverless dynamique pour les nouveaux bulletins émis au fil du temps
+   * Récupère le statut officiel Météo-France issu des bulletins d'alerte
    */
   async fetchLiveOrArchivedVigilance(dept = '59', dateStr = '') {
     const formattedDept = String(dept).padStart(2, '0').slice(0, 2);
     const cleanDate = dateStr ? dateStr.slice(0, 10) : '';
 
-    // 1. Vérification locale immédiate (< 1ms)
+    // 1. Consultation dans la base des bulletins
     if (cleanDate && vigilanceAlertsHistory && vigilanceAlertsHistory[cleanDate] && vigilanceAlertsHistory[cleanDate][formattedDept]) {
       const cached = vigilanceAlertsHistory[cleanDate][formattedDept];
-      return this.formatVigilanceResult(formattedDept, cleanDate, cached.level, cached.phenos, `Archives Météo-France (Épisode certifié du ${cleanDate})`);
+      return this.formatVigilanceResult(formattedDept, cleanDate, cached.level, cached.phenos, `Archives Météo-France (Épisode du ${cleanDate})`);
     }
 
-    // 2. Appel dynamique à la Serverless Function Vercel pour les nouveaux bulletins
+    // 2. Appel à l'API Serverless Vercel
     try {
       const response = await fetch(`/api/vigilance?dept=${formattedDept}&date=${cleanDate}`);
       if (response.ok) {
@@ -43,22 +40,19 @@ export const vigilanceArchiveService = {
         );
       }
     } catch (e) {
-      console.warn("Erreur API vigilance live:", e);
+      console.warn("Erreur API vigilance:", e);
     }
 
     return this.formatVigilanceResult(formattedDept, cleanDate, 'Vert', [], "Archives Officielles Météo-France");
   },
 
-  /**
-   * Version synchrone pour le premier rendu immédiat
-   */
   fetchOfficialVigilance(dept = '59', dateStr = '') {
     const formattedDept = String(dept).padStart(2, '0').slice(0, 2);
     const cleanDate = dateStr ? dateStr.slice(0, 10) : '';
 
     if (cleanDate && vigilanceAlertsHistory && vigilanceAlertsHistory[cleanDate] && vigilanceAlertsHistory[cleanDate][formattedDept]) {
       const cached = vigilanceAlertsHistory[cleanDate][formattedDept];
-      return this.formatVigilanceResult(formattedDept, cleanDate, cached.level, cached.phenos, `Archives Météo-France (Épisode certifié du ${cleanDate})`);
+      return this.formatVigilanceResult(formattedDept, cleanDate, cached.level, cached.phenos, `Archives Météo-France (Épisode du ${cleanDate})`);
     }
 
     return this.formatVigilanceResult(formattedDept, cleanDate, 'Vert', [], "Archives Officielles Météo-France");
@@ -67,7 +61,7 @@ export const vigilanceArchiveService = {
   formatVigilanceResult(formattedDept, cleanDate, level = 'Vert', activePhenos = [], source = "Archives Officielles Météo-France") {
     const formattedPhenos = activePhenos.length > 0 
       ? activePhenos.map(p => `${PHENO_ICONS[p] || '⚠️'} ${p}`)
-      : (level === 'Vert' ? ["🟢 Aucun phénomène dangereux majeur"] : ["⚠️ Suivi départemental Météo-France"]);
+      : (level === 'Vert' ? ["🟢 Aucun phénomène dangereux signalé"] : ["⚠️ Phénomènes locaux habituels"]);
 
     if (level === 'Rouge') {
       return {
@@ -76,8 +70,8 @@ export const vigilanceArchiveService = {
         bgClass: 'bg-rose-500/20 border-rose-500/40 text-rose-300',
         pdfBadgeClass: 'bg-rose-100 text-rose-950 border-rose-400',
         aleas: formattedPhenos,
-        bulletinTitle: "BULLETIN D'ALERTE ROUGE NATIONALE — VIGILANCE ABSOLUE",
-        bulletinText: `Météo-France a officiellement placé le département ${formattedDept} en VIGILANCE ROUGE (niveau 4/4) lors de l'épisode du ${cleanDate} (${activePhenos.join(', ')}). Des consignes d'urgence absolue ont été diffusées par les autorités préfectorales et la Sécurité Civile.`,
+        bulletinTitle: `VIGILANCE ROUGE MÉTÉO-FRANCE — DÉPARTEMENT ${formattedDept}`,
+        bulletinText: `Niveau 4/4 (Vigilance absolue) : Météo-France a émis un bulletin d'alerte rouge pour le département ${formattedDept} le ${cleanDate} (${activePhenos.join(', ') || 'Phénomènes exceptionnels'}). Consignes de sécurité impératives de la Sécurité Civile.`,
         bulletinDate: cleanDate,
         source
       };
@@ -88,8 +82,8 @@ export const vigilanceArchiveService = {
         bgClass: 'bg-amber-500/20 border-amber-500/40 text-amber-300',
         pdfBadgeClass: 'bg-amber-100 text-amber-950 border-amber-400',
         aleas: formattedPhenos,
-        bulletinTitle: "BULLETIN OFFICIEL DE VIGILANCE ORANGE MÉTÉO-FRANCE",
-        bulletinText: `Météo-France a officiellement placé le département ${formattedDept} en VIGILANCE ORANGE (niveau 3/4) lors de l'épisode du ${cleanDate} pour : ${activePhenos.join(', ')}.`,
+        bulletinTitle: `VIGILANCE ORANGE MÉTÉO-FRANCE — DÉPARTEMENT ${formattedDept}`,
+        bulletinText: `Niveau 3/4 (Soyez très vigilant) : Météo-France a placé le département ${formattedDept} en vigilance orange le ${cleanDate} pour le(s) phénomène(s) suivant(s) : ${activePhenos.join(', ')}. Des conditions météorologiques dangereuses de forte intensité ont été prévues et signalées.`,
         bulletinDate: cleanDate,
         source
       };
@@ -100,8 +94,8 @@ export const vigilanceArchiveService = {
         bgClass: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300',
         pdfBadgeClass: 'bg-yellow-100 text-yellow-950 border-yellow-300',
         aleas: formattedPhenos,
-        bulletinTitle: "BULLETIN OFFICIEL DE SUIVI DE VIGILANCE JAUNE MÉTÉO-FRANCE",
-        bulletinText: `Météo-France a placé le département ${formattedDept} en VIGILANCE JAUNE (niveau 2/4) le ${cleanDate} (${activePhenos.join(', ') || 'Soyez attentif'}).`,
+        bulletinTitle: `VIGILANCE JAUNE MÉTÉO-FRANCE — DÉPARTEMENT ${formattedDept}`,
+        bulletinText: `Niveau 2/4 (Soyez attentif) : Météo-France a placé le département ${formattedDept} en vigilance jaune le ${cleanDate}${activePhenos.length > 0 ? ` (${activePhenos.join(', ')})` : ''}. Phénomènes habituels dans la région mais occasionnellement et localement dangereux.`,
         bulletinDate: cleanDate,
         source
       };
@@ -111,9 +105,9 @@ export const vigilanceArchiveService = {
         color: 'emerald',
         bgClass: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
         pdfBadgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-        aleas: ["🟢 Conditions normales"],
-        bulletinTitle: "SITUATION NORMALE — VIGILANCE VERTE",
-        bulletinText: `Le département ${formattedDept} était officiellement placé en VIGILANCE VERTE (niveau 1/4) par Météo-France à cette date. Aucun bulletin d'alerte n'a été émis.`,
+        aleas: ["🟢 Pas de vigilance particulière"],
+        bulletinTitle: `VIGILANCE VERTE MÉTÉO-FRANCE — DÉPARTEMENT ${formattedDept}`,
+        bulletinText: `Niveau 1/4 (Situation normale) : Le département ${formattedDept} était en vigilance verte le ${cleanDate}. Aucun phénomène météorologique dangereux n'a justifié de mise en vigilance particulière par Météo-France.`,
         bulletinDate: cleanDate,
         source
       };
