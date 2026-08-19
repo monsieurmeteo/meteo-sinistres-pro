@@ -107,12 +107,12 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     e.preventDefault();
 
     if (!nom.trim()) {
-      alert('Veuillez renseigner le nom de l'assuré.');
+      alert("Veuillez renseigner le nom de l'assuré.");
       return;
     }
 
     if (!selectedLocation) {
-      alert('Veuillez rechercher et sélectionner une adresse ou commune dans la liste.');
+      alert("Veuillez rechercher et sélectionner une adresse ou commune dans la liste.");
       return;
     }
 
