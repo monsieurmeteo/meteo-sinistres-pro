@@ -71,7 +71,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             }
           });
 
-          // Récupération des tags pour la station
           const hasOrag = history.some(d => d.orag);
           const hasGrele = history.some(d => d.grele);
           const hasNeig = history.some(d => d.neig);
@@ -110,7 +109,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       setStationsWithData(results);
 
-      // Génération de l'analyse automatique sur les 5 postes
       const analysis = weatherAnalysisEngine.generateAnalysis(sinistre, results);
       setAnalysisResult(analysis);
 
@@ -123,9 +121,12 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     }
   };
 
+  // Ne recharger QUE si l'identifiant du dossier change (empêche tout rechargement lors de l'export PDF)
   useEffect(() => {
-    loadStationData();
-  }, [dossier]);
+    if (dossier?.id) {
+      loadStationData();
+    }
+  }, [dossier?.id]);
 
   const bestWindStation = useMemo(() => {
     return stationsWithData.find(s => s.obs?.fxi !== null && s.obs?.fxi !== undefined) || stationsWithData[0] || null;
@@ -139,18 +140,11 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     return stationsWithData.find(s => s.obs?.tx !== null && s.obs?.tx !== undefined) || stationsWithData[0] || null;
   }, [stationsWithData]);
 
-  // Téléchargement INSTANTANÉ du PDF sans re-fetch d'API
+  // Génération du PDF INSTANTANÉE (sans aucune requête réseau)
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     try {
       await pdfGeneratorService.generateSinistrePdf('pdf-report-container', `${reference}_${sinistre.commune || 'Rapport'}`);
-      
-      if (onUpdateDossier) {
-        onUpdateDossier({
-          ...dossier,
-          status: 'Rapport généré'
-        });
-      }
     } catch (e) {
       alert('Erreur lors de la création du PDF : ' + e.message);
     } finally {
@@ -357,7 +351,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* 2. TABLEAU QUOTIDIEN DÉTAILLÉ AVEC TAGS DE PHÉNOMÈNES (⚡ Orage, ❄️ Neige, ⚪ Grêle, 🧊 Gelée, 🌫️ Brouillard) */}
+          {/* 2. TABLEAU QUOTIDIEN DÉTAILLÉ */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl p-5">
             <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-3">
               <div>
@@ -368,7 +362,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 <p className="text-xs text-slate-400 mt-0.5">Relevés jour par jour avec heures de pointes et indicateurs météo</p>
               </div>
 
-              {/* Onglets de sélection de la station */}
               <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
                 {stationsWithData.map((st, idx) => (
                   <button
@@ -387,7 +380,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               </div>
             </div>
 
-            {/* Tableau des relevés quotidiens de la station active */}
             {activeStation && activeStation.history && activeStation.history.length > 0 ? (
               <div className="overflow-x-auto mt-4">
                 <table className="w-full text-xs text-left">
