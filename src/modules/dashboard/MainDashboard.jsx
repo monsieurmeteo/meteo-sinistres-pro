@@ -1,21 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { 
   ShieldCheck, FilePlus, FolderClock, FileText, CheckCircle2, 
-  TrendingUp, ArrowRight, Wind, Droplets, Calendar, AlertTriangle, ShieldAlert
+  TrendingUp, ArrowRight, Wind, Droplets, Calendar
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
-import { vigilanceArchiveService } from '../../services/vigilanceArchiveService';
 
 export default function MainDashboard({ dossiers = [], onNewDossier, onOpenDossier, onGoToClim }) {
   const totalCount = dossiers.length;
   const reportsCount = dossiers.filter(d => d.status === 'Rapport généré').length;
   const inProgressCount = totalCount - reportsCount;
-
-  const [nationalVigi, setNationalVigi] = useState({
-    level: 'Jaune',
-    aleas: ['⚡ Orages / Rafales locales', '💨 Vent soutenu'],
-    departements: 'Nord (59), Pas-de-Calais (62), Somme (80)'
-  });
 
   return (
     <div className="space-y-6">
@@ -52,110 +45,98 @@ export default function MainDashboard({ dossiers = [], onNewDossier, onOpenDossi
         </div>
       </div>
 
-      {/* BANDEAU DE VIGILANCE METEO-FRANCE SUR LE DASHBOARD D'ACCUEIL */}
-      <div className="p-4 rounded-2xl border border-yellow-500/40 bg-yellow-950/30 text-yellow-200 shadow-xl flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🟡</span>
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs font-black uppercase tracking-wider text-yellow-300">
-                Vigilance Météo-France Active
-              </h4>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 font-mono font-bold">
-                Niveau Jaune
-              </span>
-            </div>
-            <p className="text-xs text-slate-300 mt-0.5">
-              Aléas sous surveillance : <strong className="text-white">{nationalVigi.aleas.join(' • ')}</strong>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-400 font-mono">
-            Réseau Météo-France DPClim actif
-          </span>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-[11px] font-bold text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            2 418 Stations Connectées
-          </span>
-        </div>
-      </div>
-
-      {/* Cartes KPI */}
+      {/* 4 StatCards Métriques */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Total Dossiers"
+          title="Dossiers Traités"
           value={totalCount}
-          subtitle="Dossiers enregistrés"
-          icon={FileText}
-          color="sky"
+          subtitle="Sinistres expertisés"
+          icon={FolderClock}
+          trend="+12% ce mois"
+          variant="primary"
         />
         <StatCard
           title="Rapports Générés"
           value={reportsCount}
           subtitle="Attestations certifiées"
-          icon={CheckCircle2}
-          color="emerald"
+          icon={FileText}
+          variant="success"
         />
         <StatCard
-          title="Dossiers en attente"
+          title="En Cours d'Analyse"
           value={inProgressCount}
-          subtitle="Analyses à finaliser"
-          icon={FolderClock}
-          color="amber"
+          subtitle="En attente de finalisation"
+          icon={TrendingUp}
+          variant="warning"
         />
         <StatCard
-          title="Stations Couvertes"
+          title="Réseau Météo-France"
           value="2 418"
-          subtitle="Réseau Météo-France officiel"
+          subtitle="Stations connectées"
           icon={ShieldCheck}
-          color="indigo"
+          variant="secondary"
         />
       </div>
 
-      {/* Derniers Dossiers récents */}
-      <div className="glass-card rounded-2xl border border-slate-800 p-6 shadow-2xl">
+      {/* Liste des Derniers Dossiers */}
+      <div className="glass-card rounded-2xl p-6 border border-slate-800 shadow-xl bg-slate-900/60">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-            Derniers Sinistres Expertisés
-          </h3>
+          <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-sky-400" />
+            Dossiers de Sinistres Récents
+          </h2>
+          <span className="text-xs text-slate-400 font-mono">
+            {dossiers.length} dossier{dossiers.length > 1 ? 's' : ''} au total
+          </span>
         </div>
 
-        <div className="space-y-2">
-          {dossiers.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-xs">
-              Aucun dossier enregistré pour le moment. Cliquez sur « + Nouveau Dossier de Sinistre » pour commencer.
-            </div>
-          ) : (
-            dossiers.slice(0, 5).map(d => (
-              <div
+        {dossiers.length === 0 ? (
+          <div className="text-center py-12 text-slate-500 text-xs">
+            Aucun dossier de sinistre en cours. Cliquez sur "+ Nouveau Dossier de Sinistre" pour commencer.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-800">
+            {dossiers.slice(0, 8).map((d) => (
+              <div 
                 key={d.id}
                 onClick={() => onOpenDossier(d)}
-                className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/40 cursor-pointer flex items-center justify-between transition group"
+                className="py-3.5 px-3 -mx-3 rounded-xl hover:bg-slate-800/60 transition cursor-pointer flex items-center justify-between group"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-sky-400">{d.reference}</span>
-                    <span className="text-xs font-bold text-white">{d.assure?.nom} {d.assure?.prenom}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 font-bold text-xs">
+                    {d.reference?.slice(-3) || '001'}
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {d.sinistre?.commune} — {d.sinistre?.sinistreType} ({d.sinistre?.dateSinistre})
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-white group-hover:text-sky-300 transition">
+                        {d.assure?.nom ? `${d.assure.prenom || ''} ${d.assure.nom}` : 'Dossier sans nom'}
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-500">
+                        ({d.reference})
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-3">
+                      <span>📍 {d.sinistre?.commune || 'Commune non définie'}</span>
+                      <span>⚡ {d.sinistre?.sinistreType || 'Type non défini'}</span>
+                      <span>📅 {d.sinistre?.dateSinistre || 'Date inconnue'}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                    d.status === 'Rapport généré' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                    d.status === 'Rapport généré' 
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                   }`}>
-                    {d.status}
+                    {d.status || 'En cours'}
                   </span>
-                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400 group-hover:translate-x-1 transition" />
+                  <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-white transition transform group-hover:translate-x-1" />
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

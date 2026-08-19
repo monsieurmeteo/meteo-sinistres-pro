@@ -36,7 +36,7 @@ function AutoFitBounds({ points }) {
 export default function SinistreMap({ sinistre, stations = [] }) {
   if (!sinistre || typeof sinistre.lat !== 'number' || typeof sinistre.lon !== 'number') {
     return (
-      <div className="h-72 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-500 text-xs">
+      <div className="h-72 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-300 dark:border-slate-700 text-slate-500 text-xs">
         Localisation du sinistre en attente de coordonnées géographiques
       </div>
     );
@@ -56,7 +56,7 @@ export default function SinistreMap({ sinistre, stations = [] }) {
     <div className="w-full space-y-2">
       <div 
         id="sinistre-map-leaflet-container" 
-        className="w-full aspect-[3/2] min-h-[300px] max-h-[360px] rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-slate-100"
+        className="w-full aspect-[3/2] min-h-[300px] max-h-[360px] rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 shadow-sm relative bg-slate-100"
       >
         <MapContainer
           key={mapKey}
@@ -111,12 +111,13 @@ export default function SinistreMap({ sinistre, stations = [] }) {
         </MapContainer>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between px-1 text-xs text-slate-700 font-medium">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block" />
-          <strong>Lieu du sinistre :</strong> {sinistre.adresseSinistre || sinistre.commune}
+      {/* Écritures parfaitement contrastées et lisibles en mode sombre et clair */}
+      <div className="flex flex-wrap items-center justify-between px-1 text-xs pt-1">
+        <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-sm shadow-rose-500/50" />
+          <strong className="text-white font-bold">Lieu du sinistre :</strong> {sinistre.adresseSinistre || sinistre.commune}
         </span>
-        <span className="text-slate-600 font-mono text-[11px]">
+        <span className="text-sky-300 font-mono text-[11.5px] font-semibold">
           Stations : {activeStations.map((s, i) => `${i+1}. ${s.name} (${s.distance} km)`).join(' • ')}
         </span>
       </div>
