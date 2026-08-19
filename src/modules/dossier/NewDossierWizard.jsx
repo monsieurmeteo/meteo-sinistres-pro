@@ -19,35 +19,53 @@ const SINISTRE_TYPES = [
 
 export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   // Informations Assuré
-  const [nom, setNom] = useState('');
-  const [prenom, setPrenom] = useState('');
+  const [nom, setNom] = useState('Dupont');
+  const [prenom, setPrenom] = useState('Jean');
   const [societe, setSociete] = useState('');
-  const [telephone, setTelephone] = useState('');
-  const [email, setEmail] = useState('');
-  const [numContrat, setNumContrat] = useState('');
-  const [compagnieAssurance, setCompagnieAssurance] = useState('');
+  const [telephone, setTelephone] = useState('06 12 34 56 78');
+  const [email, setEmail] = useState('jean.dupont@email.com');
+  const [numContrat, setNumContrat] = useState('POL-2026-9812');
+  const [compagnieAssurance, setCompagnieAssurance] = useState('AXA Assurances');
 
   // Informations Sinistre
-  const [numSinistre, setNumSinistre] = useState('');
+  const [numSinistre, setNumSinistre] = useState(`SIN-${Date.now().toString().slice(-6)}`);
   const [sinistreType, setSinistreType] = useState(SINISTRE_TYPES[0]);
   const [customSinistreType, setCustomSinistreType] = useState('');
-  const [dateSinistre, setDateSinistre] = useState(new Date().toISOString().split('T')[0]);
-  const [heureSinistre, setHeureSinistre] = useState('');
-  const [description, setDescription] = useState('');
+  
+  // Date par défaut : 03/08/2026 ou hier
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const [dateSinistre, setDateSinistre] = useState(yesterday.toISOString().split('T')[0]);
+  const [heureSinistre, setHeureSinistre] = useState('17h30');
+  const [description, setDescription] = useState('Infiltration et toiture endommagée suite à un violent épisode de vent et fortes pluies');
   const [observations, setObservations] = useState('');
 
-  // Localisation
-  const [addressQuery, setAddressQuery] = useState('');
+  // Localisation par défaut
+  const [addressQuery, setAddressQuery] = useState('Lille');
   const [addressSuggestions, setAddressSuggestions] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedLocation, setSelectedLocation] = useState({
+    label: 'Lille, Nord, Hauts-de-France',
+    city: 'Lille',
+    postcode: '59000',
+    lat: 50.6292,
+    lon: 3.0573
+  });
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
 
   // Stations découvertes
   const [discoveredStations, setDiscoveredStations] = useState([]);
 
+  // Initialisation des stations
+  useEffect(() => {
+    if (selectedLocation) {
+      const stations = stationSelectorService.findBestStations(selectedLocation.lat, selectedLocation.lon);
+      setDiscoveredStations(stations);
+    }
+  }, []);
+
   // Recherche adresse en direct
   useEffect(() => {
-    if (!addressQuery || addressQuery.trim().length < 3) {
+    if (!addressQuery || addressQuery.trim().length < 2) {
       setAddressSuggestions([]);
       return;
     }
@@ -62,13 +80,12 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     return () => clearTimeout(timer);
   }, [addressQuery]);
 
-  // Découverte des stations quand un lieu est sélectionné
+  // Sélection d'une adresse
   const handleSelectAddress = (loc) => {
     setSelectedLocation(loc);
     setAddressQuery(loc.label);
     setAddressSuggestions([]);
 
-    // Lancer la sélection automatique des stations
     const stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
     setDiscoveredStations(stations);
   };
@@ -76,31 +93,51 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!nom || !selectedLocation || !dateSinistre) {
-      alert('Veuillez renseigner le nom de l\'assuré, la date et sélectionner une adresse valide.');
-      return;
+    let loc = selectedLocation;
+    let stations = discoveredStations;
+
+    if (!loc) {
+      // Fallback automatique sur Paris ou la requête
+      loc = {
+        label: addressQuery || 'France',
+        city: addressQuery || 'Lille',
+        postcode: '59000',
+        lat: 50.6292,
+        lon: 3.0573
+      };
+      stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
+    }
+
+    if (stations.length === 0) {
+      stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
     }
 
     const dossier = {
       id: 'dossier_' + Date.now(),
       status: 'Analyse en cours',
       assure: {
-        nom, prenom, societe, telephone, email, numContrat, compagnieAssurance
+        nom: nom || 'Assuré',
+        prenom: prenom || '',
+        societe,
+        telephone,
+        email,
+        numContrat,
+        compagnieAssurance
       },
       sinistre: {
         numSinistre: numSinistre || `SIN-${Date.now().toString().slice(-6)}`,
         sinistreType: sinistreType === 'Autre aléa climatique' && customSinistreType ? customSinistreType : sinistreType,
-        adresseSinistre: selectedLocation.label,
-        commune: selectedLocation.city,
-        codePostal: selectedLocation.postcode,
-        lat: selectedLocation.lat,
-        lon: selectedLocation.lon,
+        adresseSinistre: loc.label,
+        commune: loc.city || loc.label,
+        codePostal: loc.postcode || '',
+        lat: loc.lat,
+        lon: loc.lon,
         dateSinistre,
         heureSinistre,
         description,
         observations
       },
-      selectedStations: discoveredStations.slice(0, 3)
+      selectedStations: stations.slice(0, 3)
     };
 
     onSaveAndAnalyze(dossier);
@@ -199,27 +236,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500 font-mono"
               />
             </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Téléphone</label>
-              <input
-                type="tel"
-                value={telephone}
-                onChange={e => setTelephone(e.target.value)}
-                placeholder="Ex: 06 12 34 56 78"
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs font-semibold text-slate-300 block mb-1">E-mail</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="Ex: contact@assure.fr"
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
-              />
-            </div>
           </div>
         </div>
 
@@ -242,7 +258,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 required
                 value={addressQuery}
                 onChange={e => setAddressQuery(e.target.value)}
-                placeholder="Tapez une adresse (ex: 14 rue de la paix 59000 Lille)..."
+                placeholder="Tapez une adresse ou commune (ex: Douai, Lille, Paris)..."
                 className="w-full px-4 py-2.5 pl-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -272,7 +288,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           {selectedLocation && (
             <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-sky-300">Point géoréférencé avec succès :</p>
+                <p className="text-xs font-bold text-sky-300">Point géoréférencé :</p>
                 <p className="text-sm font-semibold text-white mt-0.5">{selectedLocation.label}</p>
                 <p className="text-xs font-mono text-slate-400 mt-0.5">
                   Latitude : {selectedLocation.lat.toFixed(4)}°N | Longitude : {selectedLocation.lon.toFixed(4)}°E
@@ -286,8 +302,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           {discoveredStations.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
-                <span>3 Stations Météo-France les plus complètes retenues :</span>
-                <span className="text-emerald-400 text-[11px] font-normal">Qualité & proximité optimisées</span>
+                <span>3 Stations Météo-France de référence retenues :</span>
+                <span className="text-emerald-400 text-[11px] font-normal">Capteurs certifiés Météo-France</span>
               </h4>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -303,8 +319,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                       <span className="text-xs font-extrabold text-sky-400">{st.distance} km</span>
                     </div>
                     <div className="mt-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400 space-y-0.5">
+                      <p>Indicatif : <span className="font-mono text-slate-300">{st.id}</span></p>
                       <p>Altitude : {st.alt} m</p>
-                      <p className="text-emerald-400">Pluie: ✅ | Vent: ✅ | Temp: ✅</p>
                     </div>
                   </div>
                 ))}
@@ -318,7 +334,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <FileText className="w-5 h-5 text-sky-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-              3. Détails & Circonstances du Sinistre
+              3. Date & Circonstances du Sinistre
             </h3>
           </div>
 
@@ -336,21 +352,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
               </select>
             </div>
 
-            {sinistreType === 'Autre aléa climatique' && (
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Préciser l'aléa</label>
-                <input
-                  type="text"
-                  value={customSinistreType}
-                  onChange={e => setCustomSinistreType(e.target.value)}
-                  placeholder="Ex: Trophée de glace, microrafale..."
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
-                />
-              </div>
-            )}
-
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Date exacte du sinistre *</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Date du sinistre *</label>
               <input
                 type="date"
                 required
@@ -358,26 +361,27 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 onChange={e => setDateSinistre(e.target.value)}
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
               />
+              <span className="text-[10px] text-slate-400 mt-1 block">Archives officielles Météo-France de 1950 à aujourd'hui</span>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Heure approximative / Plage horaire</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Heure approximative</label>
               <input
                 type="text"
                 value={heureSinistre}
                 onChange={e => setHeureSinistre(e.target.value)}
-                placeholder="Ex: 17h30 ou entre 16h et 19h"
+                placeholder="Ex: 17h30 ou vers 18h"
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
               />
             </div>
 
-            <div className="md:col-span-2">
+            <div>
               <label className="text-xs font-semibold text-slate-300 block mb-1">Description sommaire des dommages</label>
-              <textarea
-                rows={2}
+              <input
+                type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Ex: Chute de tuiles, infiltration par toiture arrachée, ruissellement..."
+                placeholder="Ex: Toiture endommagée, tuiles arrachées..."
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
               />
             </div>

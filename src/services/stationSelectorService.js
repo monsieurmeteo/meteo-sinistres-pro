@@ -1,4 +1,4 @@
-import stationNamesData from '../data/stationNames.json';
+import stationDatabase from '../data/stationDatabase.json';
 
 /**
  * Calcul de la distance géodésique Haversine en kilomètres
@@ -17,26 +17,8 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
 }
 
 export const stationSelectorService = {
-  /**
-   * Retourne toutes les stations indexées
-   */
   getAllStations() {
-    if (Array.isArray(stationNamesData)) return stationNamesData;
-    if (typeof stationNamesData === 'object') {
-      return Object.entries(stationNamesData).map(([id, st]) => ({
-        id: id,
-        name: st.name || st.nom || id,
-        lat: st.lat || st.latitude,
-        lon: st.lon || st.longitude,
-        alt: st.alt || st.altitude || 0,
-        dept: st.dept || (id.length >= 2 ? id.substring(0, 2) : ''),
-        hasRain: st.hasRain !== false,
-        hasWind: st.hasWind !== false,
-        hasTemp: st.hasTemp !== false,
-        source: st.source || 'Météo-France'
-      }));
-    }
-    return [];
+    return Array.isArray(stationDatabase) ? stationDatabase : [];
   },
 
   /**
@@ -50,16 +32,14 @@ export const stationSelectorService = {
     const withDistance = [];
 
     for (const st of all) {
-      if (!st.lat || !st.lon) continue;
+      if (!st.lat || !st.lon || (st.lat === 48.85 && st.lon === 2.35 && st.dept !== '75')) continue;
       const dist = haversineDistance(targetLat, targetLon, st.lat, st.lon);
       
-      // Simulation / détection de complétude des capteurs
-      // Les stations à indicatif se terminant par 001 ou SYNOP principales ont 100% de capteurs
-      const isSynop = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('003') || st.id.endsWith('004');
+      // Détection anémomètre : les stations SYNOP/RADOME (terminant par 001, 002, 003, 004 ou typePoste 1) ont un anémomètre
+      const isAnemoStation = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('003') || st.id.endsWith('004') || st.typePoste === 1;
       const hasRain = true;
-      const hasWind = isSynop || st.hasWind || (st.name && !st.name.toLowerCase().includes('poste pluvio'));
+      const hasWind = isAnemoStation;
       const hasTemp = true;
-      const completeness = (hasRain ? 1 : 0) + (hasWind ? 2 : 0) + (hasTemp ? 1 : 0); // Score /4
 
       withDistance.push({
         ...st,
@@ -68,7 +48,6 @@ export const stationSelectorService = {
         hasRain,
         hasWind,
         hasTemp,
-        completenessScore: completeness,
         isComplete: hasRain && hasWind && hasTemp
       });
     }
@@ -91,18 +70,17 @@ export const stationSelectorService = {
 
     // Tri de précision
     candidatePool.sort((a, b) => {
-      // 1. Complétude d'abord
       if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;
-      // 2. Distance
       return a.distance - b.distance;
     });
 
-    const top3Ids = new Set(candidatePool.slice(0, 3).map(s => s.id));
+    const top3 = candidatePool.slice(0, 3);
+    const top3Ids = new Set(top3.map(s => s.id));
 
-    return candidatePool.map(s => ({
+    return top3.map((s, idx) => ({
       ...s,
-      isTop3: top3Ids.has(s.id),
-      rank: top3Ids.has(s.id) ? candidatePool.slice(0, 3).findIndex(x => x.id === s.id) + 1 : null
+      isTop3: true,
+      rank: idx + 1
     }));
   }
 };

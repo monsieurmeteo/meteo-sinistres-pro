@@ -16,15 +16,22 @@ export const meteoFranceClimService = {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayISO = yesterday.toISOString().split('T')[0];
 
-    // Météo-France n'accepte pas de date future pour DPClim
-    const safeEnd = endDate >= todayISO ? yesterdayISO : endDate;
-    if (startDate > safeEnd) {
-      console.warn('[DPClim] Date de début supérieure à hier :', startDate, safeEnd);
-      return [];
+    // Météo-France DPClim consolide ses données jusqu'à J-1
+    let safeStart = startDate;
+    let safeEnd = endDate;
+
+    if (safeStart >= todayISO) {
+      safeStart = yesterdayISO;
+    }
+    if (safeEnd >= todayISO) {
+      safeEnd = yesterdayISO;
+    }
+    if (safeStart > safeEnd) {
+      safeStart = safeEnd;
     }
 
     let token = await meteoAuth.getValidToken();
-    const deb = startDate + 'T00:00:00Z';
+    const deb = safeStart + 'T00:00:00Z';
     const fin = safeEnd + 'T23:59:59Z';
 
     onProgress(`Interrogation station ${stationId}…`);
@@ -58,7 +65,7 @@ export const meteoFranceClimService = {
     const idCmde = cmdData?.elaboreProduitAvecDemandeResponse?.return;
     if (!idCmde) throw new Error('Identifiant de commande non retourné par Météo-France');
 
-    onProgress(`Génération de l'archive Météo-France (${idCmde})…`);
+    onProgress(`Génération archive Météo-France…`);
 
     const fileUrl = `${BASE_CLIM_URL}/commande/fichier?id-cmde=${encodeURIComponent(idCmde)}`;
     let csvText = null;
@@ -100,12 +107,14 @@ export const meteoFranceClimService = {
   parseDPClimCSV(csvText) {
     if (!csvText) return [];
 
-    const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const lines = csvText.trim().split(/\r?\n/);
     if (lines.length < 2) return [];
 
-    const headers = lines[0].split(';').map(h => h.trim());
+    const headerLine = lines[0];
+    const headers = headerLine.split(';').map(h => h.trim().toUpperCase());
 
-    const idxPoste = headers.indexOf('POSTE') !== -1 ? headers.indexOf('POSTE') : headers.indexOf('NUM_POSTE');
+    const rows = [];
+
     const idxDate = headers.indexOf('DATE');
     const idxRR = headers.indexOf('RR');
     const idxTN = headers.indexOf('TN');
@@ -113,89 +122,99 @@ export const meteoFranceClimService = {
     const idxTX = headers.indexOf('TX');
     const idxHTX = headers.indexOf('HTX');
     const idxTM = headers.indexOf('TM');
-    const idxTNTXM = headers.indexOf('TNTXM');
     const idxTAMPLI = headers.indexOf('TAMPLI');
-    const idxFXI = headers.indexOf('FXI');
-    const idxDXI = headers.indexOf('DXI');
-    const idxHXI = headers.indexOf('HXI');
-    const idxFXI3S = headers.indexOf('FXI3S');
-    const idxDXI3S = headers.indexOf('DXI3S');
-    const idxHXI3S = headers.indexOf('HXI3S');
-    const idxFF = headers.indexOf('FF') !== -1 ? headers.indexOf('FF') : headers.indexOf('FFM');
-    const idxDXY = headers.indexOf('DXY');
-    const idxORAG = headers.indexOf('ORAG');
-    const idxNEIG = headers.indexOf('NEIG');
-    const idxGREL = headers.indexOf('GRELE') !== -1 ? headers.indexOf('GRELE') : headers.indexOf('GREL');
-    const idxBROU = headers.indexOf('BROU');
-    const idxGELE = headers.indexOf('GELEE') !== -1 ? headers.indexOf('GELEE') : headers.indexOf('GELE');
 
-    const results = [];
+    // Rafales : priorité FXI3S (OMM 3s), sinon FXI
+    const idxFXI3S = headers.indexOf('FXI3S');
+    const idxHXI3S = headers.indexOf('HXI3S');
+    const idxDXI3S = headers.indexOf('DXI3S');
+    const idxFXI = headers.indexOf('FXI');
+    const idxHXI = headers.indexOf('HXI');
+    const idxDXI = headers.indexOf('DXI');
+    const idxFF = headers.indexOf('FF');
+
+    // Phénomènes
+    const idxOrag = headers.indexOf('ORAG');
+    const idxGrele = headers.indexOf('GRELE');
+    const idxNeig = headers.indexOf('NEIG');
+    const idxGelee = headers.indexOf('GELEE');
+    const idxBrou = headers.indexOf('BROU');
+
+    const parseFloatFR = (val) => {
+      if (!val || val === '' || val === 'null' || val === 'NaN') return null;
+      const clean = val.replace(',', '.').trim();
+      const num = parseFloat(clean);
+      return isNaN(num) ? null : num;
+    };
+
+    const formatHour = (val) => {
+      if (!val || val === '' || val === 'null') return '';
+      const s = String(val).trim();
+      if (s.length === 4) {
+        return `${s.substring(0, 2)}h${s.substring(2, 4)}`;
+      } else if (s.length === 3) {
+        return `0${s.substring(0, 1)}h${s.substring(1, 3)}`;
+      }
+      return s;
+    };
 
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(';').map(c => c.trim());
-      if (cols.length < headers.length) continue;
+      const line = lines[i].trim();
+      if (!line) continue;
 
-      const rawDate = idxDate !== -1 ? cols[idxDate] : '';
+      const cols = line.split(';');
+      const rawDate = cols[idxDate]?.trim();
       if (!rawDate || rawDate.length !== 8) continue;
 
       const formattedDate = `${rawDate.substring(0, 4)}-${rawDate.substring(4, 6)}-${rawDate.substring(6, 8)}`;
 
-      const parseVal = (idx) => {
-        if (idx === -1) return null;
-        const v = cols[idx];
-        if (!v || v === '' || v === 'null') return null;
-        const num = parseFloat(v.replace(',', '.'));
-        return isNaN(num) ? null : num;
-      };
+      // Rafale normalisée OMM (Conversion m/s -> km/h arrondi)
+      let gustKmh = null;
+      let gustHour = '';
+      let gustDir = null;
 
-      const parseHour = (idx) => {
-        if (idx === -1) return '';
-        const v = cols[idx];
-        if (!v || v.length < 3) return '';
-        const padded = v.padStart(4, '0');
-        return `${padded.substring(0, 2)}h${padded.substring(2, 4)}`;
-      };
+      if (idxFXI3S !== -1 && cols[idxFXI3S]) {
+        const ms = parseFloatFR(cols[idxFXI3S]);
+        if (ms !== null) {
+          gustKmh = Math.round(ms * 3.6);
+          gustHour = formatHour(cols[idxHXI3S]);
+          gustDir = parseFloatFR(cols[idxDXI3S]);
+        }
+      }
 
-      const tn = parseVal(idxTN);
-      const tx = parseVal(idxTX);
-      const tm = parseVal(idxTM) ?? parseVal(idxTNTXM) ?? (tn !== null && tx !== null ? parseFloat(((tn + tx) / 2).toFixed(1)) : null);
-      const rr = parseVal(idxRR) ?? 0;
+      if (gustKmh === null && idxFXI !== -1 && cols[idxFXI]) {
+        const ms = parseFloatFR(cols[idxFXI]);
+        if (ms !== null) {
+          gustKmh = Math.round(ms * 3.6);
+          gustHour = formatHour(cols[idxHXI]);
+          gustDir = parseFloatFR(cols[idxDXI]);
+        }
+      }
 
-      // Priorité à la norme OMM 3 secondes (FXI3S)
-      const fxi3sMS = parseVal(idxFXI3S);
-      const fxiMS = parseVal(idxFXI);
-      const activeFxiMS = fxi3sMS !== null ? fxi3sMS : fxiMS;
-      const fxiKmh = activeFxiMS !== null ? Math.round(activeFxiMS * 3.6) : null;
-      const hxi = parseHour(idxHXI3S) || parseHour(idxHXI);
-      const dxi = parseVal(idxDXI3S) ?? parseVal(idxDXI);
-
-      results.push({
-        stationId: idxPoste !== -1 ? cols[idxPoste] : '',
+      const row = {
         date: formattedDate,
-        rawDate: rawDate,
-        tn: tn,
-        htn: parseHour(idxHTN),
-        tx: tx,
-        htx: parseHour(idxHTX),
-        tm: tm,
-        tampli: parseVal(idxTAMPLI),
-        rr: rr,
-        fxi: fxiKmh,
-        fxiMS: activeFxiMS,
-        fxiPeakKmh: fxiMS !== null ? Math.round(fxiMS * 3.6) : null,
-        dxi: dxi,
-        hxi: hxi,
-        ff: parseVal(idxFF) !== null ? Math.round(parseVal(idxFF) * 3.6) : null,
-        ffMS: parseVal(idxFF),
-        dxy: parseVal(idxDXY),
-        orag: cols[idxORAG] === '1',
-        neig: cols[idxNEIG] === '1',
-        grele: cols[idxGREL] === '1',
-        brou: cols[idxBROU] === '1',
-        gelee: cols[idxGELE] === '1'
-      });
+        rr: idxRR !== -1 ? parseFloatFR(cols[idxRR]) : null,
+        tn: idxTN !== -1 ? parseFloatFR(cols[idxTN]) : null,
+        htn: idxHTN !== -1 ? formatHour(cols[idxHTN]) : '',
+        tx: idxTX !== -1 ? parseFloatFR(cols[idxTX]) : null,
+        htx: idxHTX !== -1 ? formatHour(cols[idxHTX]) : '',
+        tm: idxTM !== -1 ? parseFloatFR(cols[idxTM]) : null,
+        tampli: idxTAMPLI !== -1 ? parseFloatFR(cols[idxTAMPLI]) : null,
+        fxi: gustKmh,
+        hxi: gustHour,
+        dxi: gustDir,
+        ff: idxFF !== -1 ? (parseFloatFR(cols[idxFF]) ? Math.round(parseFloatFR(cols[idxFF]) * 3.6) : null) : null,
+        orag: idxOrag !== -1 && parseInt(cols[idxOrag], 10) === 1,
+        grele: idxGrele !== -1 && parseInt(cols[idxGrele], 10) === 1,
+        neig: idxNeig !== -1 && parseInt(cols[idxNeig], 10) === 1,
+        gelee: idxGelee !== -1 && parseInt(cols[idxGelee], 10) === 1,
+        brou: idxBrou !== -1 && parseInt(cols[idxBrou], 10) === 1
+      };
+
+      rows.push(row);
     }
 
-    return results.sort((a, b) => a.date.localeCompare(b.date));
+    rows.sort((a, b) => a.date.localeCompare(b.date));
+    return rows;
   }
 };

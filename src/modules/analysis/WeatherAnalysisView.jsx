@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
-  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin
+  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Info
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
@@ -82,12 +82,25 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     loadStationData();
   }, [dossier]);
 
+  // Référence intelligente pour les KPIs :
+  // Si la station 1 ne mesure pas le vent (ex: Douai), chercher la station la plus proche parmi les 3 qui mesure le vent !
+  const bestWindStation = useMemo(() => {
+    return stationsWithData.find(s => s.obs?.fxi !== null && s.obs?.fxi !== undefined) || stationsWithData[0] || null;
+  }, [stationsWithData]);
+
+  const bestRainStation = useMemo(() => {
+    return stationsWithData.find(s => s.obs?.rr !== null && s.obs?.rr !== undefined) || stationsWithData[0] || null;
+  }, [stationsWithData]);
+
+  const bestTempStation = useMemo(() => {
+    return stationsWithData.find(s => s.obs?.tx !== null && s.obs?.tx !== undefined) || stationsWithData[0] || null;
+  }, [stationsWithData]);
+
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     try {
       await pdfGeneratorService.generateSinistrePdf('pdf-report-container', `${reference}_${sinistre.commune || 'Rapport'}`);
       
-      // Mettre à jour le statut du dossier
       if (onUpdateDossier) {
         onUpdateDossier({
           ...dossier,
@@ -158,47 +171,52 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
-          {/* Cartes KPI Météorologiques Clés */}
+          {/* Cartes KPI Météorologiques Clés avec Référence Intelligente */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Rafale Max */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
               <div className="flex justify-between items-center text-slate-400 mb-1">
                 <span className="text-xs uppercase font-semibold">Rafale Max (OMM 3s)</span>
                 <Wind className="w-5 h-5 text-rose-400" />
               </div>
               <div className="text-3xl font-extrabold text-rose-400">
-                {stationsWithData[0]?.obs?.fxi ? `${stationsWithData[0].obs.fxi} km/h` : '-'}
+                {bestWindStation?.obs?.fxi !== null && bestWindStation?.obs?.fxi !== undefined ? `${bestWindStation.obs.fxi} km/h` : 'Non mesuré'}
               </div>
-              <p className="text-xs text-slate-400 mt-1">
-                {stationsWithData[0]?.obs?.hxi ? `à ${stationsWithData[0].obs.hxi}` : 'Station principale'} ({stationsWithData[0]?.name})
+              <p className="text-xs text-slate-400 mt-1 flex items-center justify-between">
+                <span>{bestWindStation?.name} ({bestWindStation?.distance} km)</span>
+                {bestWindStation?.obs?.hxi && <span className="font-mono text-slate-300">à {bestWindStation.obs.hxi}</span>}
               </p>
             </div>
 
+            {/* Précipitations */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
               <div className="flex justify-between items-center text-slate-400 mb-1">
                 <span className="text-xs uppercase font-semibold">Précipitations 24h</span>
                 <Droplets className="w-5 h-5 text-cyan-400" />
               </div>
               <div className="text-3xl font-extrabold text-cyan-400">
-                {stationsWithData[0]?.obs?.rr !== null && stationsWithData[0]?.obs?.rr !== undefined ? `${stationsWithData[0].obs.rr} mm` : '-'}
+                {bestRainStation?.obs?.rr !== null && bestRainStation?.obs?.rr !== undefined ? `${bestRainStation.obs.rr} mm` : '-'}
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Cumul total de la journée
+                {bestRainStation?.name} ({bestRainStation?.distance} km)
               </p>
             </div>
 
+            {/* Températures */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
               <div className="flex justify-between items-center text-slate-400 mb-1">
                 <span className="text-xs uppercase font-semibold">Températures Min / Max</span>
                 <Thermometer className="w-5 h-5 text-amber-400" />
               </div>
               <div className="text-2xl font-extrabold text-amber-400">
-                {stationsWithData[0]?.obs?.tn ?? '-'}° / {stationsWithData[0]?.obs?.tx ?? '-'}°
+                {bestTempStation?.obs?.tn ?? '-'}° / {bestTempStation?.obs?.tx ?? '-'}°
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Amplitude : {stationsWithData[0]?.obs?.tampli ? `${stationsWithData[0].obs.tampli}°C` : '-'}
+                {bestTempStation?.name} ({bestTempStation?.distance} km)
               </p>
             </div>
 
+            {/* Fiabilité */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
               <div className="flex justify-between items-center text-slate-400 mb-1">
                 <span className="text-xs uppercase font-semibold">Fiabilité du dossier</span>
@@ -257,7 +275,9 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}
                       </td>
                       <td className="p-3.5 text-center font-bold text-rose-400">
-                        {st.obs?.fxi ? `${st.obs.fxi} km/h` : '-'}
+                        {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : (
+                          <span className="text-slate-500 font-sans text-[10px]">Non équipé</span>
+                        )}
                       </td>
                       <td className="p-3.5 text-center text-slate-400">{st.obs?.hxi || '-'}</td>
                       <td className="p-3.5 text-center text-sky-400">{st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°` : '-'}</td>
@@ -271,7 +291,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
           {/* Grille : Carte + Analyse rédigée */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Carte Leaflet */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-sky-400" />
@@ -280,7 +299,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               <SinistreMap sinistre={sinistre} stations={stationsWithData} />
             </div>
 
-            {/* Analyse météorologique rédigée */}
             <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl flex flex-col justify-between">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2 mb-3">
@@ -313,7 +331,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </>
       )}
 
-      {/* Modèle de rapport PDF (invisible à l'écran, capturé par jsPDF) */}
+      {/* Modèle de rapport PDF */}
       <PdfReportTemplate
         dossier={dossier}
         stationsData={stationsWithData}

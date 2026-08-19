@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar, Download, RefreshCw, AlertCircle, ArrowUpRight, ArrowDownRight, 
-  Wind, Droplets, Sun, Thermometer, ShieldCheck, Search
+  Wind, Droplets, Sun, Thermometer, ShieldCheck, Search, X, MapPin
 } from 'lucide-react';
 import { 
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, Tooltip, 
@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { meteoFranceClimService } from '../../services/meteoFranceClimService';
 import normalsData from '../../data/normals_1991_2020.json';
-import stationNamesData from '../../data/stationNames.json';
+import stationDatabase from '../../data/stationDatabase.json';
 
 const MONTHS = [
   { value: 1, label: 'Janvier' }, { value: 2, label: 'Février' },
@@ -28,7 +28,7 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
   const [selectedStationId, setSelectedStationId] = useState(initialStationId);
   const [selectedStationName, setSelectedStationName] = useState(initialStationName);
   const [stationSearch, setStationSearch] = useState('');
-  const [showStationSearch, setShowStationSearch] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
@@ -37,26 +37,26 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
   const [progressMsg, setProgressMsg] = useState('');
   const [error, setError] = useState(null);
 
-  // Années disponibles : 1950 à l'année courante
+  // Années disponibles : 1950 à aujourd'hui
   const years = useMemo(() => {
     const list = [];
     for (let y = currentYear; y >= 1950; y--) list.push(y);
     return list;
   }, [currentYear]);
 
-  // Filtrage des stations
+  // Liste des stations
   const stationsList = useMemo(() => {
-    if (Array.isArray(stationNamesData)) return stationNamesData;
-    return Object.entries(stationNamesData).map(([id, s]) => ({
-      id,
-      name: s.name || s.nom || id
-    }));
+    return Array.isArray(stationDatabase) ? stationDatabase : [];
   }, []);
 
   const filteredStations = useMemo(() => {
-    if (!stationSearch.trim()) return stationsList.slice(0, 50);
+    if (!stationSearch.trim()) return stationsList.slice(0, 100);
     const q = stationSearch.toLowerCase();
-    return stationsList.filter(s => s.name.toLowerCase().includes(q) || s.id.includes(q)).slice(0, 50);
+    return stationsList.filter(s => 
+      s.name.toLowerCase().includes(q) || 
+      s.id.includes(q) || 
+      (s.dept && s.dept.toString().includes(q))
+    ).slice(0, 100);
   }, [stationsList, stationSearch]);
 
   const loadData = async () => {
@@ -211,7 +211,7 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Station active : <strong className="text-slate-200">{selectedStationName}</strong> ({selectedStationId})
+                Station active : <strong className="text-slate-100">{selectedStationName}</strong> ({selectedStationId})
               </p>
             </div>
           </div>
@@ -219,45 +219,14 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
 
         {/* Barres de contrôles */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Sélecteur de station */}
-          <div className="relative">
-            <button
-              onClick={() => setShowStationSearch(!showStationSearch)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-700 text-xs font-semibold text-slate-200 hover:border-sky-500 transition"
-            >
-              <Search className="w-3.5 h-3.5 text-sky-400" />
-              Changer de station
-            </button>
-
-            {showStationSearch && (
-              <div className="absolute right-0 mt-2 w-72 max-h-80 glass-card rounded-xl border border-slate-700 shadow-2xl p-3 z-50 overflow-hidden flex flex-col">
-                <input
-                  type="text"
-                  placeholder="Rechercher commune ou ID..."
-                  value={stationSearch}
-                  onChange={e => setStationSearch(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 mb-2"
-                  autoFocus
-                />
-                <div className="overflow-y-auto space-y-1 custom-scrollbar flex-1">
-                  {filteredStations.map(st => (
-                    <button
-                      key={st.id}
-                      onClick={() => {
-                        setSelectedStationId(st.id);
-                        setSelectedStationName(st.name);
-                        setShowStationSearch(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-sky-500/20 text-xs text-slate-300 hover:text-white flex justify-between items-center transition"
-                    >
-                      <span className="truncate">{st.name}</span>
-                      <span className="text-[10px] font-mono text-slate-500 ml-2">{st.id}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Bouton Changer de Station */}
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-sky-600/20 border border-sky-500/40 text-xs font-bold text-sky-300 hover:bg-sky-600/30 transition shadow-lg"
+          >
+            <MapPin className="w-3.5 h-3.5 text-sky-400" />
+            <span>Station : {selectedStationName}</span>
+          </button>
 
           {/* Sélecteur de Mois */}
           <select
@@ -300,6 +269,72 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
           </button>
         </div>
       </div>
+
+      {/* MODAL DE RECHERCHE DE STATION (100% VISIBLE ET ERGONOMIQUE) */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="glass-card rounded-2xl border border-slate-700 shadow-2xl w-full max-w-xl p-6 relative flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Search className="w-5 h-5 text-sky-400" />
+                Sélectionner une station Météo-France (2 400+ postes)
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 relative">
+              <input
+                type="text"
+                placeholder="Rechercher par nom de commune, département ou indicatif..."
+                value={stationSearch}
+                onChange={e => setStationSearch(e.target.value)}
+                className="w-full px-4 py-2.5 pl-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                autoFocus
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            </div>
+
+            <div className="mt-4 flex-1 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
+              {filteredStations.map(st => (
+                <button
+                  key={st.id}
+                  onClick={() => {
+                    setSelectedStationId(st.id);
+                    setSelectedStationName(st.name);
+                    setIsModalOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-xl border flex items-center justify-between transition ${
+                    selectedStationId === st.id
+                      ? 'bg-sky-600/20 border-sky-500 text-white'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  <div>
+                    <strong className="block text-xs font-bold text-slate-100">{st.name}</strong>
+                    <span className="text-[11px] text-slate-400">
+                      Département {st.dept || st.id.substring(0, 2)} • Alt : {st.alt} m
+                    </span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-sky-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
+                    {st.id}
+                  </span>
+                </button>
+              ))}
+
+              {filteredStations.length === 0 && (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Aucune station trouvée pour cette recherche.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Message de chargement / progression */}
       {loading && (
