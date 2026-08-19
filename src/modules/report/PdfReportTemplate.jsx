@@ -58,19 +58,29 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </p>
           </div>
 
-          {/* BANDEAU VIGILANCE METEO-FRANCE DANS LE PDF */}
+          {/* BANDEAU VIGILANCE METEO-FRANCE AVEC TYPE D'ALÉA ET TEXTE EXPLICATIF */}
           {vigilanceStatus && vigilanceStatus.level && (
-            <div className={`mt-4 p-3 rounded-xl border ${vigilanceStatus.pdfBadgeClass} flex items-center justify-between text-xs`}>
-              <div className="flex items-center gap-2.5">
-                <span className="font-black text-sm">
-                  {vigilanceStatus.level === 'Orange' ? '🟠' : vigilanceStatus.level === 'Jaune' ? '🟡' : '🟢'}
-                </span>
-                <div>
-                  <strong className="font-extrabold uppercase">Statut Officiel de Vigilance Météo-France : Niveau {vigilanceStatus.level.toUpperCase()}</strong>
-                  <p className="text-[11px] mt-0.5">{vigilanceStatus.justification}</p>
+            <div className={`mt-4 p-3.5 rounded-xl border ${vigilanceStatus.pdfBadgeClass} space-y-1.5 text-xs shadow-sm`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-black text-sm">
+                    {vigilanceStatus.level === 'Rouge' ? '🔴' : vigilanceStatus.level === 'Orange' ? '🟠' : vigilanceStatus.level === 'Jaune' ? '🟡' : '🟢'}
+                  </span>
+                  <strong className="font-extrabold uppercase">
+                    Statut Officiel de Vigilance Météo-France : Niveau {vigilanceStatus.level.toUpperCase()}
+                  </strong>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {vigilanceStatus.aleas?.map((al, i) => (
+                    <span key={i} className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-white border border-slate-300">
+                      {al}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold uppercase">{vigilanceStatus.aleas?.join(' • ')}</span>
+              <p className="text-[11px] text-slate-800 leading-snug pt-1 border-t border-slate-300/60">
+                {vigilanceStatus.bulletinText || vigilanceStatus.justification}
+              </p>
             </div>
           )}
 

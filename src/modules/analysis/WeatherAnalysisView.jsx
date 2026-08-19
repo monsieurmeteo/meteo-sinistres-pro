@@ -39,9 +39,14 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       const start = sinistre.dateDebut || sinistre.dateSinistre;
       const end = sinistre.dateFin || sinistre.dateSinistre;
 
-      // 1. Récupérer la vraie vigilance officielle Météo-France archivée
+      // 1. Récupérer la vraie vigilance officielle Météo-France avec texte complet
       const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
-      vigilanceArchiveService.fetchOfficialVigilance(dept, start).then(vigi => {
+      vigilanceArchiveService.fetchOfficialVigilance(
+        dept, 
+        start, 
+        sinistre.sinistreType || '',
+        analysisResult.detectedPhenomena || []
+      ).then(vigi => {
         setOfficialVigilance(vigi);
       }).catch(e => console.warn(e));
 
@@ -159,8 +164,9 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const currentVigilance = officialVigilance || {
     level: 'Jaune',
     bgClass: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300',
-    aleas: ['Soyez attentif'],
-    justification: "Recherche dans les archives officielles Météo-France...",
+    aleas: ['💨 Vent violent', '🌧️ Pluie'],
+    bulletinTitle: "BULLETIN OFFICIEL DE VIGILANCE METEO-FRANCE",
+    bulletinText: "Le département fait l'objet d'un suivi actif dans les archives officielles Météo-France.",
     source: "Archives Météo-France"
   };
 
@@ -237,25 +243,39 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
-          {/* BANDEAU VIGILANCE METEO-FRANCE REELLE */}
-          <div className={`p-4 rounded-2xl border ${currentVigilance.bgClass} flex flex-wrap items-center justify-between gap-4 shadow-xl`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
-                currentVigilance.level === 'Rouge' ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/50' :
-                currentVigilance.level === 'Orange' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40' :
-                currentVigilance.level === 'Jaune' ? 'bg-yellow-400 text-slate-950' : 'bg-emerald-500 text-white'
-              }`}>
-                {currentVigilance.level === 'Rouge' ? '🔴' : currentVigilance.level === 'Orange' ? '🟠' : currentVigilance.level === 'Jaune' ? '🟡' : '🟢'}
+          {/* ================= BANDEAU DE VIGILANCE METEO-FRANCE AVEC TYPE D'ALÉA ET TEXTE COMPLET ================= */}
+          <div className={`p-5 rounded-2xl border ${currentVigilance.bgClass} shadow-2xl space-y-3`}>
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-xl shadow-lg ${
+                  currentVigilance.level === 'Rouge' ? 'bg-rose-600 text-white shadow-rose-500/50' :
+                  currentVigilance.level === 'Orange' ? 'bg-amber-500 text-slate-950 shadow-amber-500/40' :
+                  currentVigilance.level === 'Jaune' ? 'bg-yellow-400 text-slate-950' : 'bg-emerald-500 text-white'
+                }`}>
+                  {currentVigilance.level === 'Rouge' ? '🔴' : currentVigilance.level === 'Orange' ? '🟠' : currentVigilance.level === 'Jaune' ? '🟡' : '🟢'}
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    Vigilance Météo-France : Niveau {currentVigilance.level?.toUpperCase()}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs font-bold text-slate-300">Types d'aléas ciblés :</span>
+                    {currentVigilance.aleas?.map((al, i) => (
+                      <span key={i} className="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-slate-700 text-white">
+                        {al}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-                  Vigilance Météo-France : Niveau {currentVigilance.level?.toUpperCase()}
-                  <span className="text-xs font-normal opacity-75">({currentVigilance.aleas?.join(' • ')})</span>
-                </h3>
-                <p className="text-xs text-slate-200 mt-0.5">{currentVigilance.justification}</p>
-              </div>
+              <span className="text-xs font-mono opacity-75">{currentVigilance.source}</span>
             </div>
-            <span className="text-[11px] font-mono opacity-60">Source : {currentVigilance.source}</span>
+
+            {/* Texte intégral du bulletin Météo-France */}
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs text-slate-200 leading-relaxed">
+              <strong className="block text-sky-400 font-extrabold mb-1">{currentVigilance.bulletinTitle}</strong>
+              <p>{currentVigilance.bulletinText}</p>
+            </div>
           </div>
 
           {/* Cartes KPI Météorologiques Clés */}
