@@ -46,7 +46,7 @@ export const weatherAnalysisEngine = {
       if (maxGust !== null) {
         if (maxGust >= 100) {
           paragraphs.push(
-            `Un épisode de tempête majeure a été formellement enregistré sur le secteur. La station la plus proche (${s1.name}, à ${s1.distance} km) relève une rafale maximale de ${s1.obs.fxi || 'Donnée indisponible'} km/h${s1.obs.hxi ? ' à ' + s1.obs.hxi : ''}. Le pic maximal régional atteint ${maxGust} km/h.`
+            `Un épisode de tempête majeure a été formellement enregistré sur le secteur. La station la plus proche (${s1.name}, à ${s1.distance} km) relève une rafale maximale de ${s1.obs.fxi ?? 'Donnée indisponible'} km/h${s1.obs.hxi ? ' à ' + s1.obs.hxi : ''}. Le pic maximal régional atteint ${maxGust} km/h.`
           );
         } else if (maxGust >= 80) {
           paragraphs.push(
@@ -96,7 +96,7 @@ export const weatherAnalysisEngine = {
 
     // 4. Calcul indice de confiance
     let confidenceScore = 100;
-    const avgDist = validStations.reduce((sum, s) => sum + (s.distance || 0), 0) / count;
+    const avgDist = count > 0 ? (validStations.reduce((sum, s) => sum + (s.distance || 0), 0) / count) : 50;
 
     if (count < 3) confidenceScore -= (3 - count) * 15;
     if (avgDist > 25) confidenceScore -= 15;

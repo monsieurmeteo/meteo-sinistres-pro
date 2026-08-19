@@ -71,7 +71,8 @@ export const stationSelectorService = {
     // Tri de précision
     candidatePool.sort((a, b) => {
       if (a.isComplete !== b.isComplete) return a.isComplete ? -1 : 1;
-      return a.distance - b.distance;
+      if (Math.abs(a.distance - b.distance) > 5) return a.distance - b.distance;
+      return a.altDiff - b.altDiff;
     });
 
     const top3 = candidatePool.slice(0, 3);

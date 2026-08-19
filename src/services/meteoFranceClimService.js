@@ -203,7 +203,7 @@ export const meteoFranceClimService = {
         fxi: gustKmh,
         hxi: gustHour,
         dxi: gustDir,
-        ff: idxFF !== -1 ? (parseFloatFR(cols[idxFF]) ? Math.round(parseFloatFR(cols[idxFF]) * 3.6) : null) : null,
+        ff: idxFF !== -1 ? (parseFloatFR(cols[idxFF]) !== null ? Math.round(parseFloatFR(cols[idxFF]) * 3.6) : null) : null,
         orag: idxOrag !== -1 && parseInt(cols[idxOrag], 10) === 1,
         grele: idxGrele !== -1 && parseInt(cols[idxGrele], 10) === 1,
         neig: idxNeig !== -1 && parseInt(cols[idxNeig], 10) === 1,
