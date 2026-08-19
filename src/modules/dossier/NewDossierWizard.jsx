@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Shield, User, MapPin, Calendar, Clock, FileText, CheckCircle2, 
-  Search, ArrowRight, AlertCircle, Building2, X
+  Search, ArrowRight, Building2, X
 } from 'lucide-react';
 import { geocodingService } from '../../services/geocodingService';
 import { stationSelectorService } from '../../services/stationSelectorService';
@@ -107,7 +107,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     e.preventDefault();
 
     if (!nom.trim()) {
-      alert('Veuillez renseigner le nom de l\'assuré.');
+      alert('Veuillez renseigner le nom de l'assuré.');
       return;
     }
 
@@ -161,17 +161,17 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-white flex items-center gap-2.5">
-            <Shield className="w-7 h-7 text-sky-400" />
+          <h2 className="text-2xl font-black text-slate-950 flex items-center gap-2.5">
+            <Shield className="w-7 h-7 text-sky-600" />
             Nouveau Dossier de Sinistre
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1 font-medium">
             Formulaire de déclaration — Analyse automatique sur les 5 stations Météo-France les plus proches
           </p>
         </div>
         <button
           onClick={onCancel}
-          className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-semibold text-slate-300 hover:text-white transition"
+          className="px-4 py-2 rounded-xl bg-white border border-slate-300 text-xs font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition shadow-xs"
         >
           Annuler
         </button>
@@ -179,112 +179,112 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section 1 : Assuré & Contrat */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl relative z-10">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-            <User className="w-5 h-5 text-sky-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+        <div className="glass-card rounded-2xl p-6 border border-slate-200 space-y-4 shadow-sm bg-white relative z-10">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+            <User className="w-5 h-5 text-sky-600" />
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
               1. Fiche Assuré & Contrat
             </h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Nom *</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Nom *</label>
               <input
                 type="text"
                 required
                 value={nom}
                 onChange={e => setNom(e.target.value)}
                 placeholder="Ex: Dupont"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Prénom</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Prénom</label>
               <input
                 type="text"
                 value={prenom}
                 onChange={e => setPrenom(e.target.value)}
                 placeholder="Ex: Jean"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Société (si professionnel)</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Société (si professionnel)</label>
               <input
                 type="text"
                 value={societe}
                 onChange={e => setSociete(e.target.value)}
                 placeholder="Ex: SAS BTP Nord"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Compagnie d'Assurance</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Compagnie d'Assurance</label>
               <input
                 type="text"
                 value={compagnieAssurance}
                 onChange={e => setCompagnieAssurance(e.target.value)}
                 placeholder="Ex: AXA, Allianz, Groupama..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">N° Police / Contrat</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">N° Police / Contrat</label>
               <input
                 type="text"
                 value={numContrat}
                 onChange={e => setNumContrat(e.target.value)}
                 placeholder="Ex: POL-19847291"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 font-mono shadow-xs"
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">N° de Sinistre</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">N° de Sinistre</label>
               <input
                 type="text"
                 value={numSinistre}
                 onChange={e => setNumSinistre(e.target.value)}
                 placeholder="Ex: SIN-2026-0042"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 font-mono shadow-xs"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Téléphone</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Téléphone</label>
               <input
                 type="tel"
                 value={telephone}
                 onChange={e => setTelephone(e.target.value)}
                 placeholder="Ex: 06 12 34 56 78"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="text-xs font-semibold text-slate-300 block mb-1">E-mail</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">E-mail</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="Ex: jean.dupont@email.com"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
           </div>
         </div>
 
-        {/* Section 2 : Localisation du Sinistre (Z-INDEX 50 SURÉLEVÉ POUR VISIBILITÉ TOTALE DU MENU) */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-2xl relative z-40">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-            <MapPin className="w-5 h-5 text-sky-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+        {/* Section 2 : Localisation du Sinistre */}
+        <div className="glass-card rounded-2xl p-6 border border-slate-200 space-y-4 shadow-sm bg-white relative z-40">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+            <MapPin className="w-5 h-5 text-sky-600" />
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
               2. Localisation Exacte du Sinistre
             </h3>
           </div>
 
           <div className="relative z-50" ref={searchContainerRef}>
-            <label className="text-xs font-semibold text-slate-300 block mb-1">
+            <label className="text-xs font-bold text-slate-700 block mb-1">
               Adresse exacte, Commune ou Code Postal *
             </label>
             <div className="relative">
@@ -299,24 +299,24 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                   }
                 }}
                 placeholder="Rechercher une commune ou adresse (ex: Strasbourg, Douai, Paris)..."
-                className="w-full px-4 py-3 pl-10 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition shadow-inner"
+                className="w-full px-4 py-3 pl-10 pr-10 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 transition shadow-xs"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               {addressQuery && (
                 <button
                   type="button"
                   onClick={handleClearAddress}
-                  className="absolute right-3.5 top-3 text-slate-400 hover:text-white p-0.5"
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-700 p-0.5"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            {/* Suggestions BAN déroulantes au-dessus de tout */}
+            {/* Suggestions BAN déroulantes */}
             {addressSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border-2 border-sky-500 shadow-2xl p-2 z-[9999] bg-slate-900 text-white max-h-80 overflow-y-auto space-y-1.5 backdrop-blur-xl">
-                <div className="px-2 py-1 text-[10px] uppercase font-bold text-sky-400 tracking-wider">
+              <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-sky-300 shadow-2xl p-2 z-[9999] bg-white text-slate-900 max-h-80 overflow-y-auto space-y-1.5">
+                <div className="px-2 py-1 text-[10px] uppercase font-bold text-sky-700 tracking-wider">
                   Sélectionnez votre adresse parmi les résultats :
                 </div>
                 {addressSuggestions.map((loc, i) => (
@@ -324,13 +324,13 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                     key={i}
                     type="button"
                     onClick={() => handleSelectAddress(loc)}
-                    className="w-full text-left px-4 py-3 rounded-xl bg-slate-950 hover:bg-sky-600 border border-slate-800 hover:border-sky-400 flex items-center justify-between transition group shadow-md"
+                    className="w-full text-left px-4 py-3 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-200 hover:border-sky-300 flex items-center justify-between transition group shadow-2xs"
                   >
                     <div>
-                      <strong className="block text-xs font-bold text-white group-hover:text-white">{loc.label}</strong>
-                      <span className="text-[11px] text-slate-400 group-hover:text-sky-100">{loc.context}</span>
+                      <strong className="block text-xs font-bold text-slate-900 group-hover:text-sky-900">{loc.label}</strong>
+                      <span className="text-[11px] text-slate-500">{loc.context}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-sky-400 group-hover:text-white bg-slate-900 group-hover:bg-sky-700 px-2 py-1 rounded-lg border border-slate-700">
+                    <span className="text-[10px] font-mono font-bold text-sky-700 bg-sky-100/50 px-2 py-1 rounded-lg border border-sky-200">
                       {loc.lat.toFixed(3)}°, {loc.lon.toFixed(3)}°
                     </span>
                   </button>
@@ -341,39 +341,39 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
           {/* Lieu validé */}
           {selectedLocation && (
-            <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-sky-300">Point géoréférencé :</p>
-                <p className="text-sm font-semibold text-white mt-0.5">{selectedLocation.label}</p>
-                <p className="text-xs font-mono text-slate-400 mt-0.5">
+                <p className="text-xs font-bold text-sky-800">Point géoréférencé :</p>
+                <p className="text-sm font-extrabold text-slate-900 mt-0.5">{selectedLocation.label}</p>
+                <p className="text-xs font-mono text-slate-600 mt-0.5">
                   GPS : {selectedLocation.lat.toFixed(4)}°N | {selectedLocation.lon.toFixed(4)}°E
                 </p>
               </div>
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 flex-shrink-0" />
             </div>
           )}
 
           {/* 5 Stations découvertes */}
           {discoveredStations.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-3">
                 5 Stations Météo-France de référence retenues :
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
                 {discoveredStations.slice(0, 5).map((st, idx) => (
-                  <div key={st.id} className="p-3 rounded-xl bg-slate-900/80 border border-slate-700/80">
+                  <div key={st.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-mono">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 font-mono">
                           #{idx + 1}
                         </span>
-                        <strong className="block text-xs text-white font-bold mt-1 truncate max-w-[100px]">{st.name}</strong>
+                        <strong className="block text-xs text-slate-900 font-bold mt-1 truncate max-w-[100px]">{st.name}</strong>
                       </div>
-                      <span className="text-xs font-extrabold text-sky-400">{st.distance} km</span>
+                      <span className="text-xs font-black text-sky-700">{st.distance} km</span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400 space-y-0.5">
-                      <p>ID : <span className="font-mono text-slate-300">{st.id}</span></p>
+                    <div className="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-500 space-y-0.5">
+                      <p>ID : <span className="font-mono text-slate-700 font-semibold">{st.id}</span></p>
                       <p>Alt : {st.alt} m</p>
                     </div>
                   </div>
@@ -383,22 +383,22 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           )}
         </div>
 
-        {/* Section 3 : Date unique OU Période (Z-INDEX 10) */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl relative z-10">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        {/* Section 3 : Date unique OU Période */}
+        <div className="glass-card rounded-2xl p-6 border border-slate-200 space-y-4 shadow-sm bg-white relative z-10">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-sky-400" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+              <Calendar className="w-5 h-5 text-sky-600" />
+              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-900">
                 3. Temporalité du Sinistre
               </h3>
             </div>
 
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setDateMode('single')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  dateMode === 'single' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  dateMode === 'single' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Date Unique
@@ -407,7 +407,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 type="button"
                 onClick={() => setDateMode('period')}
                 className={`px-3 py-1.5 rounded-lg transition ${
-                  dateMode === 'period' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  dateMode === 'period' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Période (Plusieurs jours)
@@ -417,11 +417,11 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Type de sinistre / Aléa météo *</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Type de sinistre / Aléa météo *</label>
               <select
                 value={sinistreType}
                 onChange={e => setSinistreType(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 font-medium focus:outline-none focus:border-sky-500 shadow-xs"
               >
                 {SINISTRE_TYPES.map(t => (
                   <option key={t} value={t}>{t}</option>
@@ -431,59 +431,59 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
             {dateMode === 'single' ? (
               <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1">Date exacte du sinistre *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Date exacte du sinistre *</label>
                 <input
                   type="date"
                   required
                   value={dateSinistre}
                   onChange={e => setDateSinistre(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-xs"
                 />
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Date de Début *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Date de Début *</label>
                   <input
                     type="date"
                     required
                     value={dateDebut}
                     onChange={e => setDateDebut(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">Date de Fin *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Date de Fin *</label>
                   <input
                     type="date"
                     required
                     value={dateFin}
                     onChange={e => setDateFin(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 focus:outline-none focus:border-sky-500 shadow-xs"
                   />
                 </div>
               </div>
             )}
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Heure approximative / Plage horaire</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Heure approximative / Plage horaire</label>
               <input
                 type="text"
                 value={heureSinistre}
                 onChange={e => setHeureSinistre(e.target.value)}
-                placeholder={dateMode === 'single' ? 'Ex: 17h30 ou vers 18h' : 'Ex: Pic d\'intensité le 2ème jour'}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                placeholder={dateMode === 'single' ? 'Ex: 17h30 ou vers 18h' : 'Ex: Pic d'intensité le 2ème jour'}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Description sommaire des dommages</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Description sommaire des dommages</label>
               <input
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Ex: Toiture endommagée, tuiles arrachées, infiltration..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
           </div>
@@ -493,7 +493,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
         <div className="flex justify-end gap-3 pt-2">
           <button
             type="submit"
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white shadow-xl shadow-sky-600/30 transition transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white shadow-md shadow-sky-600/20 transition transform hover:-translate-y-0.5"
           >
             Lancer l'analyse {dateMode === 'period' ? 'de la période' : 'du sinistre'} (5 Stations Équipées)
             <ArrowRight className="w-4 h-4" />

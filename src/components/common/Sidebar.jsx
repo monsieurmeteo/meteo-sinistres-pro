@@ -10,7 +10,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
   ];
 
   return (
-    <aside className="w-64 border-r border-slate-800 bg-[#070b12] p-4 flex flex-col justify-between hidden md:flex min-h-[calc(100vh-4rem)]">
+    <aside className="w-64 border-r border-slate-200 bg-white p-4 flex flex-col justify-between hidden md:flex min-h-[calc(100vh-4rem)]">
       <div className="space-y-1.5">
         {tabs.map(tab => {
           const Icon = tab.icon;
@@ -21,8 +21,8 @@ export default function Sidebar({ activeTab, setActiveTab }) {
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                 isActive
-                  ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/20'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -32,10 +32,10 @@ export default function Sidebar({ activeTab, setActiveTab }) {
         })}
       </div>
 
-      <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400">
-        <p className="font-bold text-slate-300">Météo Climat PRO</p>
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+        <p className="font-bold text-slate-900">Météo Climat PRO</p>
         <p className="mt-0.5">Certifications Assurances & Données Météo-France</p>
-        <p className="mt-1 font-mono text-[10px] text-sky-400">Version 1.0 Pro</p>
+        <p className="mt-1 font-mono text-[10px] text-sky-700 font-bold">Version 1.0 Pro</p>
       </div>
     </aside>
   );

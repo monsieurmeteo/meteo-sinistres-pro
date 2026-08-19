@@ -1,20 +1,20 @@
 import React from 'react';
 
-export default function StatCard({ title, value, subtitle, icon: Icon, color = 'sky', trend }) {
+export default function StatCard({ title, value, subtitle, icon: Icon, color = 'sky' }) {
   const colorMap = {
-    sky: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
-    amber: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-    emerald: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    indigo: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20',
-    rose: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+    sky: 'text-sky-600 bg-sky-50 border-sky-200',
+    amber: 'text-amber-600 bg-amber-50 border-amber-200',
+    emerald: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-200',
+    rose: 'text-rose-600 bg-rose-50 border-rose-200'
   };
 
   return (
-    <div className="glass-card rounded-2xl p-5 border border-slate-800/80 shadow-xl flex items-center justify-between">
+    <div className="glass-card rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{title}</p>
-        <p className="text-3xl font-extrabold text-white mt-1">{value}</p>
-        {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{title}</p>
+        <p className="text-3xl font-extrabold text-slate-950 mt-1">{value}</p>
+        {subtitle && <p className="text-xs text-slate-500 mt-1 font-medium">{subtitle}</p>}
       </div>
       {Icon && (
         <div className={`p-3.5 rounded-xl border ${colorMap[color] || colorMap.sky}`}>
