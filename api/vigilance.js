@@ -67,19 +67,33 @@ export default async function handler(req, res) {
     }
 
     if (Array.isArray(echeances)) {
-      const dayBulletins = echeances.filter(b => b.e && b.e.startsWith(cleanDate));
+      // Calcul du jour précédent (J-1) pour capturer les alertes émises la veille à 16h couvrant la nuit et le jour J
+      const dObj = new Date(cleanDate);
+      const prevDObj = new Date(dObj);
+      prevDObj.setDate(prevDObj.getDate() - 1);
+      const prevDate = prevDObj.toISOString().slice(0, 10);
 
-      if (dayBulletins.length > 0) {
+      const relevantBulletins = echeances.filter(b => {
+        if (!b.e) return false;
+        if (b.e.startsWith(cleanDate)) return true;
+        if (b.e.startsWith(prevDate)) {
+          const hour = parseInt(b.e.slice(11, 13), 10);
+          return hour >= 14; // Bulletin émis à 16h/20h couvrant la nuit du sinistre
+        }
+        return false;
+      });
+
+      if (relevantBulletins.length > 0) {
         let maxLevel = 1;
         let activePhenos = [];
-        let selectedBulletin = dayBulletins[0];
+        let selectedBulletin = relevantBulletins[0];
 
-        for (const b of dayBulletins) {
+        for (const b of relevantBulletins) {
           try {
             const detRes = await fetch(`https://vigilance.encelade.cloud/historique/api/get_vigilance/${b.id}`, { headers });
             if (detRes.ok) {
               const det = await detRes.json();
-              const dptRows = (det.rows || []).filter(r => String(r.dpt) === formattedDept);
+              const dptRows = (det.rows || []).filter(r => String(r.dpt) === formattedDept || String(r.dpt).padStart(2, '0') === formattedDept);
 
               for (const row of dptRows) {
                 const lvl = row.level || 1;
