@@ -346,12 +346,31 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             <span className="text-xs font-bold uppercase tracking-wider">Rafale Max Observée</span>
             <Wind className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-2xl font-black text-rose-600">
-            {primaryStation?.obs?.fxi !== null && primaryStation?.obs?.fxi !== undefined ? `${primaryStation.obs.fxi} km/h` : 'N/D'}
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1 truncate font-medium">
-            {primaryStation?.obs?.hxi ? `À ${primaryStation.obs.hxi} (${primaryStation.name})` : `Station principale (${primaryStation?.name || 'Météo-France'})`}
-          </p>
+          {(() => {
+            // Cherche la rafale max parmi toutes les stations équipées
+            let maxFxi = null;
+            let maxFxiStation = null;
+            let maxFxiHour = '';
+            stationsWithData.forEach(st => {
+              if (st.obs?.fxi !== null && st.obs?.fxi !== undefined) {
+                if (maxFxi === null || st.obs.fxi > maxFxi) {
+                  maxFxi = st.obs.fxi;
+                  maxFxiStation = st;
+                  maxFxiHour = st.obs.hxi;
+                }
+              }
+            });
+            return (
+              <>
+                <div className="text-2xl font-black text-rose-600">
+                  {maxFxi !== null ? `${maxFxi} km/h` : (primaryStation?.obs?.fxi !== null && primaryStation?.obs?.fxi !== undefined ? `${primaryStation.obs.fxi} km/h` : 'N/D')}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 truncate font-medium">
+                  {maxFxiStation ? `${maxFxiStation.name} (${maxFxiStation.distance} km)${maxFxiHour ? ` à ${maxFxiHour}` : ''}` : `Station principale (${primaryStation?.name || 'Météo-France'})`}
+                </p>
+              </>
+            );
+          })()}
         </div>
 
         <div className="glass-card rounded-2xl p-5 border border-slate-200 shadow-sm bg-white">
