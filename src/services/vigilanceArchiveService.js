@@ -55,42 +55,66 @@ export const vigilanceArchiveService = {
         if (echRes.ok) {
           const echeances = await echRes.json();
           if (Array.isArray(echeances) && echeances.length > 0) {
-            // Trouver le bulletin correspondant à la date demandée (ou le plus récent si aujourd'hui)
-            let matchingBulletins = echeances.filter(b => b.e && b.e.startsWith(cleanDate));
+            // Bulletins du jour exact uniquement
+            const matchingBulletins = echeances.filter(b => b.e && b.e.startsWith(cleanDate));
             if (matchingBulletins.length === 0) {
-              // Si pas de bulletin exact ce jour-là, prendre le bulletin le plus récent disponible
-              matchingBulletins = [echeances[echeances.length - 1]];
+              // Aucun bulletin archivé pour cette date
+              return this.formatVigilanceResult(formattedDept, cleanDate, 'Vert', [], 'Archives Météo-France (Aucun bulletin sur cette date)');
             }
 
-            const latestBulletin = matchingBulletins[matchingBulletins.length - 1];
-            const detRes = await fetch(`https://vigilance.encelade.cloud/historique/api/get_vigilance/${latestBulletin.id}`, { headers });
-            if (detRes.ok) {
-              const det = await detRes.json();
-              const dptRows = (det.rows || []).filter(r => String(r.dpt) === formattedDept || String(r.dpt).padStart(2, '0') === formattedDept);
+            // Scan de TOUS les bulletins du jour — on retient le NIVEAU LE PLUS ÉLEVÉ
+            let globalMaxLevel = 1;
+            let globalPhenos = [];
+            let bestBulletinId = matchingBulletins[0].id;
+            let bestBulletinDate = matchingBulletins[0].e;
 
-              let maxLevel = 1;
-              let activePhenos = [];
+            const delay = ms => new Promise(r => setTimeout(r, ms));
+
+            for (const bulletin of matchingBulletins) {
+              let detRes = null;
+              // Retry sur 429 (rate-limit Encelade)
+              for (let attempt = 0; attempt < 3; attempt++) {
+                detRes = await fetch(
+                  `https://vigilance.encelade.cloud/historique/api/get_vigilance/${bulletin.id}`,
+                  { headers }
+                );
+                if (detRes.status !== 429) break;
+                await delay(800 * (attempt + 1));
+              }
+
+              if (!detRes || !detRes.ok) continue;
+
+              let det;
+              try { det = await detRes.json(); } catch { continue; }
+
+              const dptRows = (det.rows || []).filter(
+                r => String(r.dpt) === formattedDept || String(r.dpt).padStart(2, '0') === formattedDept
+              );
 
               for (const row of dptRows) {
                 const lvl = row.level || 1;
-                if (lvl > maxLevel) maxLevel = lvl;
+                if (lvl > globalMaxLevel) {
+                  globalMaxLevel = lvl;
+                  bestBulletinId = bulletin.id;
+                  bestBulletinDate = bulletin.e;
+                }
                 if (row.pheno_id && PHENO_NAMES[row.pheno_id]) {
                   const pName = PHENO_NAMES[row.pheno_id];
-                  if (!activePhenos.includes(pName)) activePhenos.push(pName);
+                  if (!globalPhenos.includes(pName)) globalPhenos.push(pName);
                 }
               }
-
-              const levelNames = { 1: 'Vert', 2: 'Jaune', 3: 'Orange', 4: 'Rouge' };
-              const resolvedLevel = levelNames[maxLevel] || 'Vert';
-
-              return this.formatVigilanceResult(
-                formattedDept,
-                cleanDate,
-                resolvedLevel,
-                activePhenos,
-                `Météo-France (Bulletin #${latestBulletin.id} du ${latestBulletin.e?.slice(0, 16)})`
-              );
             }
+
+            const levelNames = { 1: 'Vert', 2: 'Jaune', 3: 'Orange', 4: 'Rouge' };
+            const resolvedLevel = levelNames[globalMaxLevel] || 'Vert';
+
+            return this.formatVigilanceResult(
+              formattedDept,
+              cleanDate,
+              resolvedLevel,
+              globalPhenos,
+              `Météo-France (Bulletin #${bestBulletinId} du ${bestBulletinDate?.slice(0, 16)})`
+            );
           }
         }
       }
