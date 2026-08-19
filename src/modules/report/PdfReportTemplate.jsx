@@ -58,27 +58,30 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </p>
           </div>
 
-          {/* BANDEAU VIGILANCE METEO-FRANCE AVEC TYPE D'ALÉA ET TEXTE EXPLICATIF */}
+          {/* BANDEAU VIGILANCE METEO-FRANCE AVEC TYPE D'ALÉA EN GRAND */}
           {vigilanceStatus && vigilanceStatus.level && (
-            <div className={`mt-4 p-3.5 rounded-xl border ${vigilanceStatus.pdfBadgeClass} space-y-1.5 text-xs shadow-sm`}>
+            <div className={`mt-4 p-4 rounded-xl border ${vigilanceStatus.pdfBadgeClass} space-y-2 text-xs shadow-sm`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-black text-sm">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-lg">
                     {vigilanceStatus.level === 'Rouge' ? '🔴' : vigilanceStatus.level === 'Orange' ? '🟠' : vigilanceStatus.level === 'Jaune' ? '🟡' : '🟢'}
                   </span>
-                  <strong className="font-extrabold uppercase">
-                    Statut Officiel de Vigilance Météo-France : Niveau {vigilanceStatus.level.toUpperCase()}
-                  </strong>
+                  <div>
+                    <span className="font-mono text-[10px] uppercase tracking-wider block text-slate-500 font-bold">Statut Officiel Météo-France</span>
+                    <strong className="font-black text-sm uppercase text-slate-950">
+                      VIGILANCE {vigilanceStatus.level.toUpperCase()}
+                    </strong>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {vigilanceStatus.aleas?.map((al, i) => (
-                    <span key={i} className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-white border border-slate-300">
+                    <span key={i} className="text-xs font-black px-3 py-1 rounded-lg bg-white border border-slate-400 text-slate-900 shadow-xs">
                       {al}
                     </span>
                   ))}
                 </div>
               </div>
-              <p className="text-[11px] text-slate-800 leading-snug pt-1 border-t border-slate-300/60">
+              <p className="text-[11px] text-slate-800 leading-snug pt-2 border-t border-slate-300/80">
                 {vigilanceStatus.bulletinText || vigilanceStatus.justification}
               </p>
             </div>
