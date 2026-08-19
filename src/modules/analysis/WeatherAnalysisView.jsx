@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
   Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock,
-  Trophy, History, Award, AlertTriangle
+  Trophy, History, Award, Sparkles, AlertTriangle
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
@@ -20,7 +20,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [error, setError] = useState(null);
 
   const [stationsWithData, setStationsWithData] = useState([]);
-  const [analysisResult, setAnalysisResult] = useState({ text: '', kpis: [] });
+  const [analysisResult, setAnalysisResult] = useState({ text: '', kpis: [], confidence: {} });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
   const [liveVigilance, setLiveVigilance] = useState({ level: 'Jaune', aleas: ['Orages', 'Vent violent'] });
@@ -53,7 +53,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         if (vigi) {
           setLiveVigilance(vigi);
         } else {
-          // Fallback contextuel selon sinistre
           const isWind = claimType.toLowerCase().includes('vent') || claimType.toLowerCase().includes('orage');
           setLiveVigilance({
             level: isWind ? 'Jaune' : 'Vert',
@@ -108,7 +107,8 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             hxi: maxGustHour,
             maxGustDate: maxGustDate,
             tn: minTn,
-            tx: maxTx
+            tx: maxTx,
+            tampli: (minTn !== null && maxTx !== null) ? Math.round((maxTx - minTn) * 10) / 10 : null
           };
 
           const records = stationRecordsService.getRecords(st.id, st.name, dept);
@@ -124,7 +124,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           const records = stationRecordsService.getRecords(st.id, st.name, dept);
           results.push({
             ...st,
-            obs: { date: start, rr: null, fxi: null, tn: null, tx: null },
+            obs: { date: start, rr: null, fxi: null, tn: null, tx: null, tampli: null },
             history: [],
             records: records
           });
@@ -193,7 +193,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           <button
             onClick={handleDownloadPdf}
             disabled={isGeneratingPdf || loading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-lg shadow-sky-600/30 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow-lg shadow-sky-600/30 transition-all disabled:opacity-50 hover:scale-105 active:scale-95"
           >
             <Download className="w-4 h-4" />
             {isGeneratingPdf ? 'Génération du PDF…' : 'Télécharger le Rapport PDF'}
@@ -201,7 +201,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
-      {/* BANDEAU DE VIGILANCE METEO-FRANCE RESTAURE */}
+      {/* 1. BANDEAU DE VIGILANCE METEO-FRANCE */}
       {liveVigilance && liveVigilance.level && liveVigilance.level !== 'Vert' && (
         <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xl ${
           liveVigilance.level === 'Rouge'
@@ -243,173 +243,318 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           <p className="text-sm">{error}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Colonne Gauche : Carte & Synthèse */}
-          <div className="lg:col-span-2 space-y-6">
-            
-            {/* Carte Haute Définition */}
-            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-3">
-              <h2 className="text-sm font-bold text-white flex items-center justify-between">
-                <span>Cartographie des 3 Stations de Référence</span>
-                <span className="text-xs font-mono text-slate-400">Ratio 3:2</span>
-              </h2>
+        <>
+          {/* 2. 4 CARTES KPI D'ORIGINE */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
+              <div className="flex justify-between items-center text-slate-400 mb-1">
+                <span className="text-xs uppercase font-semibold">Rafale Max Observée</span>
+                <Wind className="w-5 h-5 text-rose-400" />
+              </div>
+              <div className="text-3xl font-extrabold text-rose-400">
+                {stationsWithData[0]?.obs?.fxi ? `${stationsWithData[0].obs.fxi} km/h` : 'N/D'}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                {stationsWithData[0]?.obs?.hxi ? `à ${stationsWithData[0].obs.hxi}` : 'Station principale'} ({stationsWithData[0]?.name})
+              </p>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
+              <div className="flex justify-between items-center text-slate-400 mb-1">
+                <span className="text-xs uppercase font-semibold">Précipitations 24h</span>
+                <Droplets className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div className="text-3xl font-extrabold text-cyan-400">
+                {stationsWithData[0]?.obs?.rr !== null && stationsWithData[0]?.obs?.rr !== undefined ? `${stationsWithData[0].obs.rr} mm` : '-'}
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Cumul total de l'événement
+              </p>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
+              <div className="flex justify-between items-center text-slate-400 mb-1">
+                <span className="text-xs uppercase font-semibold">Températures Min / Max</span>
+                <Thermometer className="w-5 h-5 text-amber-400" />
+              </div>
+              <div className="text-2xl font-extrabold text-amber-400">
+                {stationsWithData[0]?.obs?.tn ?? '-'}° / {stationsWithData[0]?.obs?.tx ?? '-'}°
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Amplitude : {stationsWithData[0]?.obs?.tampli ? `${stationsWithData[0].obs.tampli}°C` : '-'}
+              </p>
+            </div>
+
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-xl">
+              <div className="flex justify-between items-center text-slate-400 mb-1">
+                <span className="text-xs uppercase font-semibold">Fiabilité du dossier</span>
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="text-lg font-extrabold text-emerald-400">
+                {analysisResult.confidence?.level || 'Élevée'}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
+                {analysisResult.confidence?.reason || '3 stations de référence Météo-France'}
+              </p>
+            </div>
+          </div>
+
+          {/* 3. TABLEAU COMPARATIF DES 3 STATIONS */}
+          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+                Tableau Comparatif des 3 Stations Météo-France
+              </h3>
+              <ConfidenceBadge 
+                level={analysisResult.confidence?.level} 
+                score={analysisResult.confidence?.score} 
+                reason={analysisResult.confidence?.reason} 
+              />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5">Station</th>
+                    <th className="p-3.5 text-center">Distance</th>
+                    <th className="p-3.5 text-center">Altitude</th>
+                    <th className="p-3.5 text-center">Pluie 24h</th>
+                    <th className="p-3.5 text-center">Rafale Max (OMM 3s)</th>
+                    <th className="p-3.5 text-center">Heure Rafale</th>
+                    <th className="p-3.5 text-center">Tn (°C)</th>
+                    <th className="p-3.5 text-center">Tx (°C)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono">
+                  {stationsWithData.map((st, idx) => (
+                    <tr key={st.id || idx} className={idx === 0 ? 'bg-sky-500/10' : 'hover:bg-slate-800/30'}>
+                      <td className="p-3.5 font-sans">
+                        <strong className="text-slate-100">{st.name}</strong> ({st.id})
+                        {idx === 0 && (
+                          <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400">
+                            Station Principale
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-center font-bold text-slate-200">{st.distance} km</td>
+                      <td className="p-3.5 text-center text-slate-400">{st.alt || 0} m</td>
+                      <td className="p-3.5 text-center font-bold text-cyan-400">
+                        {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}
+                      </td>
+                      <td className="p-3.5 text-center font-bold text-rose-400">
+                        {st.obs?.fxi ? `${st.obs.fxi} km/h` : 'N/D'}
+                      </td>
+                      <td className="p-3.5 text-center text-slate-400">{st.obs?.hxi || '-'}</td>
+                      <td className="p-3.5 text-center text-sky-400">{st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°` : '-'}</td>
+                      <td className="p-3.5 text-center text-amber-400">{st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx}°` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 4. GRILLE : CARTE INTERACTIVE LEAFLET + SYNTHÈSE RÉDIGÉE */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-sky-400" />
+                Localisation & Réseau de Stations
+              </h3>
               <SinistreMap sinistre={sinistre} stations={stationsWithData} />
             </div>
 
-            {/* Analyse Technique */}
-            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-3">
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-sky-400" />
-                Analyse & Synthèse des Conditions Observées
-              </h2>
-              <div className="text-xs text-slate-300 leading-relaxed space-y-2">
-                {analysisResult.text ? (
-                  analysisResult.text.split('\n\n').map((p, idx) => (
-                    <p key={idx}>{p}</p>
-                  ))
-                ) : (
-                  <p>Aucune analyse disponible.</p>
-                )}
+            <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-sky-400" />
+                  Synthèse Météorologique Automatique
+                </h3>
+                <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-slate-300 leading-relaxed space-y-3 custom-scrollbar max-h-80 overflow-y-auto">
+                  {analysisResult.text ? (
+                    analysisResult.text.split('\n\n').map((p, idx) => (
+                      <p key={idx}>{p}</p>
+                    ))
+                  ) : (
+                    <p>Analyse non disponible.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between">
+                <span className="text-xs text-slate-400">Réf : {reference}</span>
+                <button
+                  onClick={handleDownloadPdf}
+                  className="flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Télécharger le rapport A4
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Colonne Droite : KPIs, Observations & Records */}
-          <div className="space-y-6">
-            
-            {/* KPIs */}
-            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-3">
-              <h2 className="text-sm font-bold text-white">Synthèse Météorologique</h2>
-              <div className="grid grid-cols-2 gap-3">
-                {analysisResult.kpis?.map((k, i) => (
-                  <div key={i} className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 text-center">
-                    <span className="text-lg block mb-1">{k.icon}</span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block truncate">{k.label}</span>
-                    <span className="text-base font-black text-white block my-0.5">{k.val}</span>
-                    <span className="text-[9px] text-slate-400 block truncate">{k.sub}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Liste des 3 Stations */}
-            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white">Observations des Stations</h2>
-                <span className="text-[11px] text-slate-400">Cliquez pour voir les records</span>
+          {/* 5. TABLEAU QUOTIDIEN DÉTAILLÉ AVEC ONGLETS */}
+          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl p-5">
+            <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-3">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-sky-400" />
+                  Tableau Quotidien Détaillé & Phénomènes Observés
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Relevés jour par jour avec heures de pointes et indicateurs météo</p>
               </div>
 
-              <div className="space-y-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
                 {stationsWithData.map((st, idx) => (
-                  <button 
-                    key={st.id || idx}
+                  <button
+                    key={st.id}
                     onClick={() => setSelectedStationTab(idx)}
-                    className={`w-full p-3 rounded-xl border text-left transition flex items-center justify-between text-xs ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                       selectedStationTab === idx
-                        ? 'bg-sky-950/50 border-sky-500/80 shadow-md shadow-sky-900/20'
-                        : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800'
+                        ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30'
+                        : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <div>
-                      <strong className="text-white block font-bold">#{idx + 1}. {st.name}</strong>
-                      <span className="text-slate-400 font-mono text-[11px]">{st.distance} km • {st.id}</span>
-                    </div>
-                    <div className="text-right">
-                      {st.obs?.fxi !== null ? (
-                        <span className="font-bold text-rose-400 block">💨 {st.obs.fxi} km/h</span>
-                      ) : (
-                        <span className="text-slate-500 block">💨 N/D</span>
-                      )}
-                      {st.obs?.rr !== null ? (
-                        <span className="font-bold text-cyan-400 block">🌧️ {st.obs.rr} mm</span>
-                      ) : (
-                        <span className="text-slate-500 block">🌧️ N/D</span>
-                      )}
-                    </div>
+                    <span>#{idx + 1} {st.name}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({st.distance}km)</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Records Historiques & Normales */}
-            {activeRecords && (
-              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                    <Trophy className="w-4 h-4 text-amber-400" />
-                    Records Historiques — {activeStation?.name}
-                  </h3>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Ouverte en {activeRecords.opened || '1970'}
+            {activeStation && activeStation.history && activeStation.history.length > 0 ? (
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">Date</th>
+                      <th className="p-3 text-center">Tn Min (°C)</th>
+                      <th className="p-3 text-center">Heure Tn</th>
+                      <th className="p-3 text-center">Tx Max (°C)</th>
+                      <th className="p-3 text-center">Heure Tx</th>
+                      <th className="p-3 text-center">Pluie (mm)</th>
+                      <th className="p-3 text-center">Rafale Max</th>
+                      <th className="p-3 text-center">Heure Rafale</th>
+                      <th className="p-3 text-center">Direction</th>
+                      <th className="p-3 text-center">Phénomènes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 font-mono">
+                    {activeStation.history.map(d => (
+                      <tr key={d.date} className="hover:bg-slate-800/30 transition">
+                        <td className="p-3 font-sans font-bold text-slate-200">{d.date}</td>
+                        <td className={`p-3 text-center ${d.tn !== null && d.tn < 0 ? 'text-sky-400 font-bold' : 'text-slate-300'}`}>
+                          {d.tn !== null ? `${d.tn}°C` : '-'}
+                        </td>
+                        <td className="p-3 text-center text-slate-400">{d.htn || '-'}</td>
+                        <td className={`p-3 text-center ${d.tx !== null && d.tx >= 25 ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>
+                          {d.tx !== null ? `${d.tx}°C` : '-'}
+                        </td>
+                        <td className="p-3 text-center text-slate-400">{d.htx || '-'}</td>
+                        <td className={`p-3 text-center ${d.rr > 0 ? 'text-cyan-400 font-bold' : 'text-slate-500'}`}>
+                          {d.rr !== null ? `${d.rr}` : '-'}
+                        </td>
+                        <td className={`p-3 text-center ${d.fxi >= 60 ? 'text-rose-400 font-bold' : 'text-slate-300'}`}>
+                          {d.fxi !== null ? `${d.fxi} km/h` : '-'}
+                        </td>
+                        <td className="p-3 text-center text-slate-400">{d.hxi || '-'}</td>
+                        <td className="p-3 text-center text-slate-400">{d.dxi ? `${d.dxi}°` : '-'}</td>
+                        <td className="p-3 text-center font-sans">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {d.orag && <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-xs font-bold" title="Orage">⚡ Orage</span>}
+                            {d.grele && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-200 text-xs font-bold" title="Grêle">⚪ Grêle</span>}
+                            {d.neig && <span className="px-2 py-0.5 rounded bg-sky-500/20 text-sky-200 text-xs font-bold" title="Neige">❄️ Neige</span>}
+                            {d.gelee && <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-200 text-xs font-bold" title="Gelée">🧊 Gelée</span>}
+                            {d.brou && <span className="px-2 py-0.5 rounded bg-slate-500/20 text-slate-300 text-xs font-bold" title="Brouillard">🌫️ Brouillard</span>}
+                            {!d.orag && !d.grele && !d.neig && !d.gelee && !d.brou && <span className="text-slate-600">-</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-slate-500 text-xs">
+                Aucun relevé quotidien disponible pour cette sélection.
+              </div>
+            )}
+          </div>
+
+          {/* 6. RECORDS HISTORIQUES & NORMALES DE SAISON */}
+          {activeRecords && (
+            <div className="glass-card rounded-2xl border border-slate-800 shadow-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  Records Historiques & Normales de Saison — {activeStation?.name}
+                </h3>
+                <span className="text-xs text-slate-400 font-mono">
+                  Station ouverte en {activeRecords.opened || '1970'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
+                    <Wind className="w-3.5 h-3.5 text-rose-400" /> Record Rafale
+                  </span>
+                  <span className="text-base font-black text-rose-400 block">
+                    {activeRecords.windRecord?.val ? `${activeRecords.windRecord.val} km/h` : 'N/D'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {activeRecords.windRecord?.date} {activeRecords.windRecord?.event ? `(${activeRecords.windRecord.event})` : ''}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 text-xs">
-                  {/* Record Vent */}
-                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
-                      <Wind className="w-3 h-3 text-rose-400" /> Record Rafale
-                    </span>
-                    <span className="text-sm font-black text-rose-400 block">
-                      {activeRecords.windRecord?.val ? `${activeRecords.windRecord.val} km/h` : 'N/D'}
-                    </span>
-                    <span className="text-[9px] text-slate-400 block truncate">
-                      {activeRecords.windRecord?.date} {activeRecords.windRecord?.event ? `(${activeRecords.windRecord.event})` : ''}
-                    </span>
-                  </div>
-
-                  {/* Record Pluie 24h */}
-                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
-                      <Droplets className="w-3 h-3 text-cyan-400" /> Record Pluie 24h
-                    </span>
-                    <span className="text-sm font-black text-cyan-400 block">
-                      {activeRecords.rain24Record?.val ? `${activeRecords.rain24Record.val} mm` : 'N/D'}
-                    </span>
-                    <span className="text-[9px] text-slate-400 block truncate">
-                      {activeRecords.rain24Record?.date || 'Météo-France'}
-                    </span>
-                  </div>
-
-                  {/* Record Chaleur Tx */}
-                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
-                      <Sun className="w-3 h-3 text-amber-400" /> Record Chaleur (Tx)
-                    </span>
-                    <span className="text-sm font-black text-amber-400 block">
-                      {activeRecords.txRecord?.val ? `${activeRecords.txRecord.val} °C` : 'N/D'}
-                    </span>
-                    <span className="text-[9px] text-slate-400 block truncate">
-                      {activeRecords.txRecord?.date || 'Météo-France'}
-                    </span>
-                  </div>
-
-                  {/* Record Froid Tn */}
-                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
-                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
-                      <Thermometer className="w-3 h-3 text-sky-400" /> Record Froid (Tn)
-                    </span>
-                    <span className="text-sm font-black text-sky-400 block">
-                      {activeRecords.tnRecord?.val ? `${activeRecords.tnRecord.val} °C` : 'N/D'}
-                    </span>
-                    <span className="text-[9px] text-slate-400 block truncate">
-                      {activeRecords.tnRecord?.date || 'Météo-France'}
-                    </span>
-                  </div>
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
+                    <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Record Pluie 24h
+                  </span>
+                  <span className="text-base font-black text-cyan-400 block">
+                    {activeRecords.rain24Record?.val ? `${activeRecords.rain24Record.val} mm` : 'N/D'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {activeRecords.rain24Record?.date || 'Météo-France'}
+                  </span>
                 </div>
 
-                <p className="text-[10px] text-slate-400 leading-tight italic">
-                  * Données climatiques de référence et normales issues des archives officielles Météo-France.
-                </p>
-              </div>
-            )}
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
+                    <Sun className="w-3.5 h-3.5 text-amber-400" /> Record Chaleur (Tx)
+                  </span>
+                  <span className="text-base font-black text-amber-400 block">
+                    {activeRecords.txRecord?.val ? `${activeRecords.txRecord.val} °C` : 'N/D'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {activeRecords.txRecord?.date || 'Météo-France'}
+                  </span>
+                </div>
 
-          </div>
-        </div>
+                <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1.5">
+                    <Thermometer className="w-3.5 h-3.5 text-sky-400" /> Record Froid (Tn)
+                  </span>
+                  <span className="text-base font-black text-sky-400 block">
+                    {activeRecords.tnRecord?.val ? `${activeRecords.tnRecord.val} °C` : 'N/D'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    {activeRecords.tnRecord?.date || 'Météo-France'}
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-tight italic pt-1">
+                * Données climatiques de référence et normales 1991-2020 issues des archives officielles Météo-France.
+              </p>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Modèle PDF caché rendu pour html2canvas */}
+      {/* Modèle de rapport PDF A4 étanche (invisible à l'écran, capturé par jsPDF) */}
       <PdfReportTemplate
         dossier={dossier}
         stationsData={stationsWithData}
