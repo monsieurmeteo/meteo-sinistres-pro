@@ -7,26 +7,21 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
   const { assure = {}, sinistre = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
 
   useEffect(() => {
-    QRCode.toDataURL(`https://meteo-sinistres-pro.vercel.app/verification/${reference}`, { width: 120, margin: 1 })
+    QRCode.toDataURL(`https://meteo-sinistres-pro.vercel.app/verification/${reference}`, { width: 130, margin: 1 })
       .then(url => setQrUrl(url))
       .catch(e => console.error(e));
   }, [reference]);
 
-  // Validation champs obligatoires
   const isDraft = !assure.nom || !sinistre.numSinistre || !sinistre.dateSinistre || !sinistre.commune;
-
-  // 3 Stations de référence
   const activeStations = (stationsData || []).slice(0, 3);
   const kpis = analysisResult?.kpis || [];
 
-  // Détection colonnes selon aléa
   const claimType = (sinistre.sinistreType || '').toLowerCase();
   const isLightningClaim = claimType.includes('foudre') || claimType.includes('orage');
   const showWind = !claimType.includes('pluie') && !claimType.includes('gel') && !claimType.includes('chaleur');
   const showRain = !claimType.includes('gel') && !claimType.includes('chaleur');
   const showTemp = claimType.includes('gel') || claimType.includes('chaleur') || claimType.includes('orage') || (!claimType.includes('vent') && !claimType.includes('pluie'));
 
-  // Formatage nom propre (Casse Mixte)
   const formatName = (str) => {
     if (!str) return '';
     return str.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
@@ -34,7 +29,6 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
   const formattedAssureName = `${formatName(assure.prenom)} ${formatName(assure.nom)}`.trim();
 
-  // Badge vigilance avec couleur exacte
   const getVigiStyle = (lvl) => {
     if (lvl === 'Rouge') return { icon: '🔴', text: 'text-rose-950 font-bold', bg: 'bg-rose-50 border-rose-300' };
     if (lvl === 'Orange') return { icon: '🟠', text: 'text-amber-950 font-bold', bg: 'bg-amber-50 border-amber-300' };
@@ -59,7 +53,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         )}
 
         <div className="space-y-3">
-          {/* Header avec logo officiel et référence bien espacée */}
+          {/* Header avec logo officiel et référence bien proportionnée */}
           <div className="flex justify-between items-center pb-2.5 border-b-2 border-slate-200">
             <div className="flex items-center gap-3.5">
               <img 
@@ -68,7 +62,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                 className="h-11 w-auto object-contain" 
               />
               <div className="border-l-2 border-slate-300 pl-3.5">
-                <span className="text-[10pt] font-black tracking-wider text-slate-950 uppercase block">
+                <span className="text-[10pt] font-black tracking-wider text-slate-950 uppercase block leading-tight">
                   Analyse et Expertise Météorologique
                 </span>
                 <span className="text-[8pt] text-slate-600 font-medium">
@@ -76,11 +70,11 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                 </span>
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-[7.5pt] uppercase font-extrabold text-slate-500 block mb-0.5 tracking-wider">
+            <div className="text-right shrink-0">
+              <span className="text-[7pt] uppercase font-black text-slate-500 block mb-0.5 tracking-wider">
                 RÉFÉRENCE DU RAPPORT
               </span>
-              <span className="text-[10pt] font-mono font-black text-slate-950 bg-slate-100 px-2.5 py-1 rounded border border-slate-300 inline-block shadow-2xs">
+              <span className="text-[10pt] font-mono font-black text-slate-950 bg-slate-100 px-3 py-1 rounded border border-slate-300 inline-block shadow-2xs whitespace-nowrap">
                 {reference}
               </span>
             </div>
@@ -88,20 +82,20 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
           {/* Titre Principal Agrandie */}
           <div>
-            <h1 className="text-[15pt] font-black tracking-tight text-slate-950 uppercase">
+            <h1 className="text-[15pt] font-black tracking-tight text-slate-950 uppercase leading-none">
               Rapport Météorologique de Sinistre
             </h1>
-            <p className="text-[9pt] text-slate-600 font-medium">
+            <p className="text-[9pt] text-slate-600 font-medium mt-1">
               Analyse des observations météorologiques instrumentales à proximité du lieu déclaré
             </p>
           </div>
 
-          {/* Fiches Assuré & Sinistre - Typographie généreuse et nette */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/90 text-[9pt] space-y-1 shadow-2xs">
+          {/* Fiches Assuré & Sinistre */}
+          <div className="grid grid-cols-2 gap-3.5">
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/90 text-[9pt] space-y-1 shadow-2xs">
               <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1.5 flex items-center justify-between">
                 <span>Assuré</span>
-                <span className="text-[7.5pt] font-normal text-slate-500">Identité</span>
+                <span className="text-[7.5pt] font-bold text-slate-400">Identité</span>
               </h2>
               {formattedAssureName && (
                 <p><span className="text-slate-500">Nom & Prénom :</span> <strong className="text-slate-950 font-bold">{formattedAssureName}</strong></p>
@@ -113,20 +107,20 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                 <p><span className="text-slate-500">Compagnie d'assurance :</span> <strong className="text-slate-950 font-bold">{assure.compagnieAssurance}</strong></p>
               )}
               {assure.numContrat && (
-                <p><span className="text-slate-500">N° Contrat / Police :</span> <strong className="font-mono text-slate-950">{assure.numContrat}</strong></p>
+                <p><span className="text-slate-500">N° Contrat / Police :</span> <strong className="font-mono text-slate-950 font-bold">{assure.numContrat}</strong></p>
               )}
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/90 text-[9pt] space-y-1 shadow-2xs">
+            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/90 text-[9pt] space-y-1 shadow-2xs">
               <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1.5 flex items-center justify-between">
                 <span>Sinistre</span>
-                <span className="text-[7.5pt] font-normal text-slate-500">Circonstances</span>
+                <span className="text-[7.5pt] font-bold text-slate-400">Circonstances</span>
               </h2>
               {sinistre.numSinistre && (
-                <p><span className="text-slate-500">N° de sinistre :</span> <strong className="font-mono text-slate-950">{sinistre.numSinistre}</strong></p>
+                <p><span className="text-slate-500">N° de sinistre :</span> <strong className="font-mono text-slate-950 font-bold">{sinistre.numSinistre}</strong></p>
               )}
               {sinistre.sinistreType && (
-                <p><span className="text-slate-500">Nature déclarée :</span> <strong className="text-sky-900 font-bold">{sinistre.sinistreType}</strong></p>
+                <p><span className="text-slate-500">Nature déclarée :</span> <strong className="text-sky-900 font-black">{sinistre.sinistreType}</strong></p>
               )}
               {sinistre.dateSinistre && (
                 <p><span className="text-slate-500">Date :</span> <strong className="text-slate-950 font-bold">{sinistre.dateSinistre}</strong></p>
@@ -152,7 +146,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                   </span>
                 </div>
               </div>
-              <span className="text-[7pt] font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+              <span className="text-[7.5pt] font-mono font-bold text-slate-600 bg-white px-2.5 py-0.5 rounded border border-slate-200">
                 Source : Météo-France
               </span>
             </div>
@@ -168,24 +162,30 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           )}
 
-          {/* Synthèse KPI Page 1 - Hauteur et typographie agrandies, zéro superposition */}
+          {/* Synthèse KPI Page 1 - Parfaite disposition horizontale sans superposition */}
           <div>
             <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1.5 border-l-4 border-sky-600 pl-2">
               Synthèse Météorologique
             </h2>
-            <div className="grid grid-cols-4 gap-2.5">
-              {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-center shadow-2xs flex flex-col justify-between min-h-[75px]">
-                  <span className="text-sm block">{kpi.icon}</span>
-                  <span className="text-[7pt] font-bold text-slate-600 uppercase block truncate">{kpi.label}</span>
-                  <span className="text-[12pt] font-black text-slate-950 block my-0.5 leading-none">{kpi.val}</span>
-                  <span className="text-[7pt] text-slate-500 block truncate">{kpi.sub}</span>
+            <div className="grid grid-cols-3 gap-3">
+              {kpis.slice(0, 3).map((kpi, idx) => (
+                <div key={idx} className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center shadow-2xs flex flex-col justify-between">
+                  <div className="flex items-center justify-center gap-1.5 text-[8pt] font-black uppercase text-slate-700 tracking-wider">
+                    <span>{kpi.icon}</span>
+                    <span className="truncate">{kpi.label}</span>
+                  </div>
+                  <div className="text-[15pt] font-black text-slate-950 my-1 leading-tight">
+                    {kpi.val}
+                  </div>
+                  <div className="text-[7.5pt] text-slate-500 font-medium truncate w-full">
+                    {kpi.sub}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Grande Carte Haute Définition (Épurée, sans boutons +/-) */}
+          {/* Grande Carte Haute Définition */}
           <div className="border border-slate-300 rounded-xl p-2.5 bg-white shadow-xs">
             <div className="flex justify-between items-center mb-1.5 px-1">
               <span className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900">
@@ -196,7 +196,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               </span>
             </div>
 
-            <div className="w-full h-[270px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full h-[260px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
