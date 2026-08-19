@@ -72,7 +72,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
       return;
     }
 
-    // Ne pas rechercher si l'adresse tapée correspond exactement à l'adresse sélectionnée
     if (selectedLocation && addressQuery === selectedLocation.label) {
       setAddressSuggestions([]);
       return;
@@ -88,13 +87,11 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     return () => clearTimeout(timer);
   }, [addressQuery, selectedLocation]);
 
-  // Clic sur une suggestion : sélectionne et FERME immédiatement la liste
   const handleSelectAddress = (loc) => {
     setSelectedLocation(loc);
     setAddressQuery(loc.label);
-    setAddressSuggestions([]); // FERMETURE IMMÉDIATE
+    setAddressSuggestions([]);
 
-    // Découverte des 5 stations 100% ouvertes et équipées
     const stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
     setDiscoveredStations(stations);
   };
@@ -182,7 +179,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Section 1 : Assuré & Contrat */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl">
+        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl relative z-10">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <User className="w-5 h-5 text-sky-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
@@ -277,8 +274,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           </div>
         </div>
 
-        {/* Section 2 : Localisation du Sinistre */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl">
+        {/* Section 2 : Localisation du Sinistre (Z-INDEX 50 SURÉLEVÉ POUR VISIBILITÉ TOTALE DU MENU) */}
+        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-2xl relative z-40">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <MapPin className="w-5 h-5 text-sky-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
@@ -286,7 +283,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             </h3>
           </div>
 
-          <div className="relative" ref={searchContainerRef}>
+          <div className="relative z-50" ref={searchContainerRef}>
             <label className="text-xs font-semibold text-slate-300 block mb-1">
               Adresse exacte, Commune ou Code Postal *
             </label>
@@ -301,8 +298,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                     setSelectedLocation(null);
                   }
                 }}
-                placeholder="Rechercher une commune ou adresse (ex: Douai, Valenciennes, Paris)..."
-                className="w-full px-4 py-3 pl-10 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                placeholder="Rechercher une commune ou adresse (ex: Strasbourg, Douai, Paris)..."
+                className="w-full px-4 py-3 pl-10 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition shadow-inner"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
               {addressQuery && (
@@ -316,21 +313,26 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
               )}
             </div>
 
-            {/* Suggestions BAN déroulantes */}
+            {/* Suggestions BAN déroulantes au-dessus de tout */}
             {addressSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-1 glass-card rounded-xl border border-slate-700 shadow-2xl p-2 z-50 overflow-hidden space-y-1 bg-slate-950">
+              <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border-2 border-sky-500 shadow-2xl p-2 z-[9999] bg-slate-900 text-white max-h-80 overflow-y-auto space-y-1.5 backdrop-blur-xl">
+                <div className="px-2 py-1 text-[10px] uppercase font-bold text-sky-400 tracking-wider">
+                  Sélectionnez votre adresse parmi les résultats :
+                </div>
                 {addressSuggestions.map((loc, i) => (
                   <button
                     key={i}
                     type="button"
                     onClick={() => handleSelectAddress(loc)}
-                    className="w-full text-left px-3.5 py-2.5 rounded-lg hover:bg-sky-500/20 text-xs text-slate-200 hover:text-white flex items-center justify-between transition"
+                    className="w-full text-left px-4 py-3 rounded-xl bg-slate-950 hover:bg-sky-600 border border-slate-800 hover:border-sky-400 flex items-center justify-between transition group shadow-md"
                   >
                     <div>
-                      <strong className="block text-slate-100 font-bold">{loc.label}</strong>
-                      <span className="text-[11px] text-slate-400">{loc.context}</span>
+                      <strong className="block text-xs font-bold text-white group-hover:text-white">{loc.label}</strong>
+                      <span className="text-[11px] text-slate-400 group-hover:text-sky-100">{loc.context}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">{loc.lat.toFixed(3)}°, {loc.lon.toFixed(3)}°</span>
+                    <span className="text-[10px] font-mono text-sky-400 group-hover:text-white bg-slate-900 group-hover:bg-sky-700 px-2 py-1 rounded-lg border border-slate-700">
+                      {loc.lat.toFixed(3)}°, {loc.lon.toFixed(3)}°
+                    </span>
                   </button>
                 ))}
               </div>
@@ -351,7 +353,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             </div>
           )}
 
-          {/* 5 Stations découvertes (SANS la mention "capteurs actifs") */}
+          {/* 5 Stations découvertes */}
           {discoveredStations.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
@@ -381,8 +383,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           )}
         </div>
 
-        {/* Section 3 : Date unique OU Période */}
-        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl">
+        {/* Section 3 : Date unique OU Période (Z-INDEX 10) */}
+        <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl relative z-10">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-sky-400" />
