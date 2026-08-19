@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
-  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock
+  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock,
+  Trophy, History, Award
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
@@ -98,17 +99,22 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             tx: maxTx
           };
 
+          const records = stationRecordsService.getRecords(st.id, st.name, dept);
+
           results.push({
             ...st,
             obs: summaryObs,
-            history: history
+            history: history,
+            records: records
           });
         } catch (e) {
           console.warn(`Erreur station ${st.name}:`, e);
+          const records = stationRecordsService.getRecords(st.id, st.name, dept);
           results.push({
             ...st,
             obs: { date: start, rr: null, fxi: null, tn: null, tx: null },
-            history: []
+            history: [],
+            records: records
           });
         }
       }
@@ -143,6 +149,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   };
 
   const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
+  const activeRecords = activeStation?.records;
 
   return (
     <div className="space-y-6">
@@ -225,7 +232,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* Colonne Droite : KPIs & Stations */}
+          {/* Colonne Droite : KPIs, Observations & Records */}
           <div className="space-y-6">
             
             {/* KPIs */}
@@ -245,16 +252,25 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
             {/* Liste des 3 Stations */}
             <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-3">
-              <h2 className="text-sm font-bold text-white">Observations des Stations</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white">Observations des Stations</h2>
+                <span className="text-[11px] text-slate-400">Cliquez pour voir les records</span>
+              </div>
+
               <div className="space-y-2">
                 {stationsWithData.map((st, idx) => (
-                  <div 
+                  <button 
                     key={st.id || idx}
-                    className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between text-xs"
+                    onClick={() => setSelectedStationTab(idx)}
+                    className={`w-full p-3 rounded-xl border text-left transition flex items-center justify-between text-xs ${
+                      selectedStationTab === idx
+                        ? 'bg-sky-950/50 border-sky-500/80 shadow-md shadow-sky-900/20'
+                        : 'bg-slate-800/60 border-slate-700/60 hover:bg-slate-800'
+                    }`}
                   >
                     <div>
-                      <strong className="text-white block font-bold">{idx + 1}. {st.name}</strong>
-                      <span className="text-slate-400 font-mono text-[11px]">{st.distance} km</span>
+                      <strong className="text-white block font-bold">#{idx + 1}. {st.name}</strong>
+                      <span className="text-slate-400 font-mono text-[11px]">{st.distance} km • {st.id}</span>
                     </div>
                     <div className="text-right">
                       {st.obs?.fxi !== null ? (
@@ -268,10 +284,83 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         <span className="text-slate-500 block">🌧️ N/D</span>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
+
+            {/* SECTION RECORDS HISTORIQUES & NORMALES (RÉTABLIE !) */}
+            {activeRecords && (
+              <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4 text-amber-400" />
+                    Records Historiques — {activeStation?.name}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Ouverte en {activeRecords.opened || '1970'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  {/* Record Vent */}
+                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
+                      <Wind className="w-3 h-3 text-rose-400" /> Record Rafale
+                    </span>
+                    <span className="text-sm font-black text-rose-400 block">
+                      {activeRecords.windRecord?.val ? `${activeRecords.windRecord.val} km/h` : 'N/D'}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block truncate">
+                      {activeRecords.windRecord?.date} {activeRecords.windRecord?.event ? `(${activeRecords.windRecord.event})` : ''}
+                    </span>
+                  </div>
+
+                  {/* Record Pluie 24h */}
+                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
+                      <Droplets className="w-3 h-3 text-cyan-400" /> Record Pluie 24h
+                    </span>
+                    <span className="text-sm font-black text-cyan-400 block">
+                      {activeRecords.rain24Record?.val ? `${activeRecords.rain24Record.val} mm` : 'N/D'}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block truncate">
+                      {activeRecords.rain24Record?.date || 'Météo-France'}
+                    </span>
+                  </div>
+
+                  {/* Record Chaleur Tx */}
+                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
+                      <Sun className="w-3 h-3 text-amber-400" /> Record Chaleur (Tx)
+                    </span>
+                    <span className="text-sm font-black text-amber-400 block">
+                      {activeRecords.txRecord?.val ? `${activeRecords.txRecord.val} °C` : 'N/D'}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block truncate">
+                      {activeRecords.txRecord?.date || 'Météo-France'}
+                    </span>
+                  </div>
+
+                  {/* Record Froid Tn */}
+                  <div className="p-2.5 rounded-xl bg-slate-800/70 border border-slate-700/70 space-y-0.5">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold block flex items-center gap-1">
+                      <Thermometer className="w-3 h-3 text-sky-400" /> Record Froid (Tn)
+                    </span>
+                    <span className="text-sm font-black text-sky-400 block">
+                      {activeRecords.tnRecord?.val ? `${activeRecords.tnRecord.val} °C` : 'N/D'}
+                    </span>
+                    <span className="text-[9px] text-slate-400 block truncate">
+                      {activeRecords.tnRecord?.date || 'Météo-France'}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-slate-400 leading-tight italic">
+                  * Données climatiques de référence et normales issues des archives officielles Météo-France.
+                </p>
+              </div>
+            )}
 
           </div>
         </div>
