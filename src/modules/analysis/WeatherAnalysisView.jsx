@@ -431,7 +431,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                   {maxRr !== null ? `${maxRr} mm` : 'Non mesuré'}
                 </div>
                 <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
-                  {maxRrStation ? `Max. sur ${maxRrStation.name} (${maxRrStation.distance} km)` : 'Cumul total de l'événement'}
+                  {maxRrStation ? `Max. sur ${maxRrStation.name} (${maxRrStation.distance} km)` : "Cumul total de l'événement"}
                 </p>
               </>
             );
