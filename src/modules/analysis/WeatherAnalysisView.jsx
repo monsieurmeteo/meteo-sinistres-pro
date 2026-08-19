@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
-  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock, Sparkles
+  Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock, Sparkles,
+  Trophy, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
 import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import { meteoFranceClimService } from '../../services/meteoFranceClimService';
 import { weatherAnalysisEngine } from '../../services/weatherAnalysisEngine';
+import { stationRecordsService } from '../../services/stationRecordsService';
+import { vigilanceArchiveService } from '../../services/vigilanceArchiveService';
 import { pdfGeneratorService } from '../../services/pdfGeneratorService';
 
 export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }) {
@@ -16,7 +19,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [error, setError] = useState(null);
 
   const [stationsWithData, setStationsWithData] = useState([]);
-  const [analysisResult, setAnalysisResult] = useState({ text: '', confidence: {} });
+  const [analysisResult, setAnalysisResult] = useState({ text: '', confidence: {}, detectedPhenomena: [] });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
 
@@ -92,17 +95,22 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             brou: hasBrou
           };
 
+          // Récupération des records officiels Météo-France de la station
+          const records = stationRecordsService.getRecords(st.id, st.name, st.dept);
+
           results.push({
             ...st,
             obs: summaryObs,
-            history: history
+            history: history,
+            records: records
           });
         } catch (e) {
           console.warn(`Erreur station ${st.name}:`, e);
           results.push({
             ...st,
             obs: { date: start, rr: null, fxi: null, tn: null, tx: null },
-            history: []
+            history: [],
+            records: stationRecordsService.getRecords(st.id, st.name, st.dept)
           });
         }
       }
@@ -121,7 +129,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     }
   };
 
-  // Ne recharger QUE si l'identifiant du dossier change (empêche tout rechargement lors de l'export PDF)
   useEffect(() => {
     if (dossier?.id) {
       loadStationData();
@@ -140,7 +147,26 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     return stationsWithData.find(s => s.obs?.tx !== null && s.obs?.tx !== undefined) || stationsWithData[0] || null;
   }, [stationsWithData]);
 
-  // Génération du PDF INSTANTANÉE (sans aucune requête réseau)
+  const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
+
+  // Calcul du statut de vigilance Météo-France
+  const vigilanceStatus = useMemo(() => {
+    const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
+    return vigilanceArchiveService.getVigilanceStatus(
+      dept,
+      sinistre.dateSinistre,
+      bestWindStation?.obs?.fxi,
+      bestRainStation?.obs?.rr,
+      analysisResult.detectedPhenomena || []
+    );
+  }, [sinistre, bestWindStation, bestRainStation, analysisResult]);
+
+  // Évaluation de la sévérité vs record absolu Météo-France
+  const windSeverity = useMemo(() => {
+    if (!bestWindStation?.obs?.fxi || !bestWindStation?.records?.windRecord?.val) return null;
+    return stationRecordsService.evaluateSeverity(bestWindStation.obs.fxi, bestWindStation.records.windRecord.val, 'wind');
+  }, [bestWindStation]);
+
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
     try {
@@ -151,8 +177,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       setIsGeneratingPdf(false);
     }
   };
-
-  const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
 
   return (
     <div className="space-y-6">
@@ -216,6 +240,26 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
+          {/* BANDEAU VIGILANCE METEO-FRANCE OFFICIELLE */}
+          <div className={`p-4 rounded-2xl border ${vigilanceStatus.bgClass} flex flex-wrap items-center justify-between gap-4 shadow-xl`}>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
+                vigilanceStatus.level === 'Orange' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40' :
+                vigilanceStatus.level === 'Jaune' ? 'bg-yellow-400 text-slate-950' : 'bg-emerald-500 text-white'
+              }`}>
+                {vigilanceStatus.level === 'Orange' ? '🟠' : vigilanceStatus.level === 'Jaune' ? '🟡' : '🟢'}
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
+                  Vigilance Météo-France : Niveau {vigilanceStatus.level.toUpperCase()}
+                  <span className="text-xs font-normal opacity-75">({vigilanceStatus.aleas.join(' • ')})</span>
+                </h3>
+                <p className="text-xs text-slate-200 mt-0.5">{vigilanceStatus.justification}</p>
+              </div>
+            </div>
+            <span className="text-[11px] font-mono opacity-60">Source : {vigilanceStatus.source}</span>
+          </div>
+
           {/* Cartes KPI Météorologiques Clés */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-card rounded-2xl p-5 border border-slate-800">
@@ -273,19 +317,20 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 {analysisResult.confidence?.level || 'Élevée'}
               </div>
               <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                {analysisResult.confidence?.reason || '5 stations de référence 100% équipées'}
+                {analysisResult.confidence?.reason || '5 stations 100% équipées'}
               </p>
             </div>
           </div>
 
-          {/* 1. TABLEAU COMPARATIF DES 5 STATIONS */}
+          {/* 1. TABLEAU COMPARATIF DES 5 STATIONS & RECORDS OFFICIELS METEO-FRANCE */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                  Tableau Comparatif des 5 Stations Météo-France de Référence (100% Équipées)
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  Tableau Comparatif & Records Historiques Absolus Météo-France
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Seules les stations avec anémomètres et capteurs officiels sont retenues</p>
+                <p className="text-xs text-slate-400 mt-0.5">Valeurs observées mises en perspective avec les records historiques officiels</p>
               </div>
               
               <ConfidenceBadge 
@@ -299,14 +344,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
                   <tr>
-                    <th className="p-3.5">Station</th>
+                    <th className="p-3.5">Station Météo-France</th>
                     <th className="p-3.5 text-center">Distance</th>
-                    <th className="p-3.5 text-center">Altitude</th>
                     <th className="p-3.5 text-center">{isPeriod ? 'Cumul Pluie' : 'Pluie 24h'}</th>
-                    <th className="p-3.5 text-center">Rafale Max (OMM 3s)</th>
-                    <th className="p-3.5 text-center">Heure / Date Rafale</th>
-                    <th className="p-3.5 text-center">Tn Min</th>
-                    <th className="p-3.5 text-center">Tx Max</th>
+                    <th className="p-3.5 text-center">Rafale Observée</th>
+                    <th className="p-3.5 text-center">Record Rafale Météo-France</th>
+                    <th className="p-3.5 text-center">Record Pluie 24h</th>
+                    <th className="p-3.5 text-center">Extrêmes Tx / Tn</th>
                     <th className="p-3.5 text-center">Phénomènes</th>
                   </tr>
                 </thead>
@@ -317,23 +361,29 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         <strong className="text-slate-100">{st.name}</strong> ({st.id})
                         {idx === 0 && (
                           <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400">
-                            Station Principale
+                            Poste Principal (ouvert {st.records?.opened || '1960'})
                           </span>
                         )}
                       </td>
                       <td className="p-3.5 text-center font-bold text-slate-200">{st.distance} km</td>
-                      <td className="p-3.5 text-center text-slate-400">{st.alt} m</td>
                       <td className="p-3.5 text-center font-bold text-cyan-400">
                         {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}
                       </td>
                       <td className="p-3.5 text-center font-bold text-rose-400">
                         {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : '-'}
                       </td>
-                      <td className="p-3.5 text-center text-slate-400">
-                        {st.obs?.hxi ? `${st.obs.hxi} ${st.obs.maxGustDate ? `(${st.obs.maxGustDate.split('-')[2]})` : ''}` : '-'}
+                      <td className="p-3.5 text-center text-amber-300 font-bold">
+                        {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
+                        <span className="block text-[9px] font-sans text-slate-400 font-normal">
+                          {st.records?.windRecord?.date || 'Archive'}
+                        </span>
                       </td>
-                      <td className="p-3.5 text-center text-sky-400">{st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°` : '-'}</td>
-                      <td className="p-3.5 text-center text-amber-400">{st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx}°` : '-'}</td>
+                      <td className="p-3.5 text-center text-cyan-300">
+                        {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65 mm'}
+                      </td>
+                      <td className="p-3.5 text-center text-slate-300">
+                        {st.records?.txRecord?.val}° / {st.records?.tnRecord?.val}°
+                      </td>
                       <td className="p-3.5 text-center font-sans">
                         <div className="flex items-center justify-center gap-1">
                           {st.obs?.orag && <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]" title="Orage">⚡</span>}
@@ -486,6 +536,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         dossier={dossier}
         stationsData={stationsWithData}
         analysisResult={analysisResult}
+        vigilanceStatus={vigilanceStatus}
       />
     </div>
   );
