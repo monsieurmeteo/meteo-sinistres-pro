@@ -18,7 +18,6 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
   const kpis = analysisResult?.kpis || [];
 
   const claimType = (sinistre.sinistreType || '').toLowerCase();
-  const isLightningClaim = claimType.includes('foudre') || claimType.includes('orage');
   const showWind = !claimType.includes('pluie') && !claimType.includes('gel') && !claimType.includes('chaleur');
   const showRain = !claimType.includes('gel') && !claimType.includes('chaleur');
   const showTemp = claimType.includes('gel') || claimType.includes('chaleur') || claimType.includes('orage') || (!claimType.includes('vent') && !claimType.includes('pluie'));
@@ -191,15 +190,14 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </h2>
             <div className="grid grid-cols-4 gap-2.5">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-2 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[78px] box-border">
-                  <div className="flex items-center justify-center gap-1 text-[7pt] font-black uppercase text-slate-700 tracking-wider w-full pt-0.5">
-                    <span className="text-xs leading-none">{kpi.icon}</span>
-                    <span className="leading-normal truncate">{kpi.label}</span>
+                <div key={idx} className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[75px] box-border">
+                  <div className="text-[7.5pt] font-black uppercase text-slate-700 tracking-wider">
+                    {kpi.icon} {kpi.label}
                   </div>
-                  <div className="text-[13pt] font-black text-slate-950 my-0.5 leading-normal">
+                  <div className="text-[13pt] font-black text-slate-950 my-0.5 leading-tight">
                     {kpi.val}
                   </div>
-                  <div className="text-[7pt] text-slate-500 font-medium leading-tight w-full pb-0.5 truncate">
+                  <div className="text-[7pt] text-slate-500 font-medium truncate w-full">
                     {kpi.sub}
                   </div>
                 </div>

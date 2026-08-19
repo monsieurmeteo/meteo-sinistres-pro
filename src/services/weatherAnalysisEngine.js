@@ -11,19 +11,16 @@ export const weatherAnalysisEngine = {
     if (t.includes('pluie') || t.includes('inondation') || t.includes('ruissellement')) {
       return { type: 'PLUIE', columns: ['rr', 'fxi'], kpi: ['rr', 'fxi'] };
     }
-    if (t.includes('gel') || t.includes('froid')) {
-      return { type: 'GEL', columns: ['tn', 'tx', 'rr'], kpi: ['tn', 'tx'] };
+    if (t.includes('gel') || t.includes('froid') || t.includes('canalisation')) {
+      return { type: 'GEL', columns: ['tn', 'tx'], kpi: ['tn', 'tx'] };
     }
-    if (t.includes('canicule') || t.includes('chaleur')) {
-      return { type: 'CHALEUR', columns: ['tx', 'tn', 'rr'], kpi: ['tx', 'tn'] };
+    if (t.includes('chaleur') || t.includes('canicule') || t.includes('sécheresse')) {
+      return { type: 'CHALEUR', columns: ['tx', 'tn'], kpi: ['tx', 'tn'] };
     }
-    if (t.includes('foudre')) {
-      return { type: 'FOUDRE', columns: ['rr', 'fxi', 'tx'], kpi: ['fxi', 'rr'] };
+    if (t.includes('foudre') || t.includes('orage') || t.includes('grêle') || t.includes('électrique')) {
+      return { type: 'ORAGE', columns: ['fxi', 'rr', 'tn'], kpi: ['fxi', 'rr'] };
     }
-    if (t.includes('orage') || t.includes('grêle')) {
-      return { type: 'ORAGE', columns: ['fxi', 'hxi', 'rr', 'tx'], kpi: ['fxi', 'rr', 'tx'] };
-    }
-    return { type: 'GENERAL', columns: ['rr', 'fxi', 'hxi', 'tn', 'tx'], kpi: ['fxi', 'rr', 'tx'] };
+    return { type: 'AUTRE', columns: ['fxi', 'rr', 'tx', 'tn'], kpi: ['fxi', 'rr'] };
   },
 
   generateAnalysis(sinistreInfo = {}, stationsData = []) {
@@ -36,10 +33,8 @@ export const weatherAnalysisEngine = {
     }
 
     const validStations = stationsData.filter(s => s.obs && s.obs.date);
-    const count = validStations.length;
     const s1 = validStations[0] || stationsData[0];
     const claimType = sinistreInfo.sinistreType || 'Événement météorologique';
-    const params = this.getRelevantParameters(claimType);
 
     const gusts = validStations.map(s => s.obs?.fxi).filter(v => v !== null && v !== undefined);
     const rains = validStations.map(s => s.obs?.rr).filter(v => v !== null && v !== undefined);
@@ -54,112 +49,58 @@ export const weatherAnalysisEngine = {
     const bestWindSt = validStations.find(s => s.obs?.fxi === maxGust) || s1;
     const bestRainSt = validStations.find(s => s.obs?.rr === maxRain) || s1;
 
-    // 1. Structure de rédaction sobre (100 à 150 mots)
-    const sentences = [];
+    // Calcul de confiance
+    const distScore = Math.max(0, 100 - (s1?.distance || 15) * 2.5);
+    const compScore = (validStations.length / 3) * 100;
+    const finalScore = Math.min(98, Math.round(distScore * 0.5 + compScore * 0.5));
+    const confLevel = finalScore >= 75 ? "Élevée" : (finalScore >= 50 ? "Moyenne" : "Faible");
 
-    // Introduction
-    sentences.push(
-      `Station principale : ${s1.name}, située à ${s1.distance} km du lieu du sinistre (${sinistreInfo.commune || 'commune déclarée'}).`
-    );
+    // 4 KPIs standardisés
+    const kpis = [
+      {
+        icon: "💨",
+        label: "Rafale Max",
+        val: maxGust !== null ? `${maxGust} km/h` : "N/D",
+        sub: maxGust !== null ? `${bestWindSt.name} (${bestWindSt.distance} km)` : "Non mesuré"
+      },
+      {
+        icon: "💧",
+        label: "Pluie 24h",
+        val: maxRain !== null ? `${maxRain} mm` : "0 mm",
+        sub: maxRain !== null ? `${bestRainSt.name}` : "Précipitations nulles"
+      },
+      {
+        icon: "🌡️",
+        label: "Tn / Tx",
+        val: (minT !== null && maxT !== null) ? `${minT}° / ${maxT}°` : (minT !== null ? `${minT}°C` : "N/D"),
+        sub: "Températures extrêmes"
+      },
+      {
+        icon: "🛡️",
+        label: "Fiabilité",
+        val: confLevel,
+        sub: `${validStations.length} stations Météo-France`
+      }
+    ];
 
-    // Analyse selon le type de sinistre
-    if (params.type === 'VENT' || params.type === 'ORAGE') {
-      if (maxGust !== null) {
-        if (bestWindSt.id === s1.id) {
-          sentences.push(
-            `La rafale maximale relevée parmi les stations étudiées atteint ${maxGust} km/h à ${s1.name}${s1.obs.hxi ? ' à ' + s1.obs.hxi : ''}.`
-          );
-        } else {
-          sentences.push(
-            `La rafale maximale relevée parmi les stations étudiées atteint ${maxGust} km/h à ${bestWindSt.name} (${bestWindSt.distance} km)${bestWindSt.obs?.hxi ? ' à ' + bestWindSt.obs.hxi : ''}. La station principale de ${s1.name} relève quant à elle ${s1.obs?.fxi !== null ? s1.obs.fxi + ' km/h' : 'N/D'}${s1.obs?.hxi ? ' à ' + s1.obs.hxi : ''}.`
-          );
-        }
-      }
-      if (maxRain !== null && maxRain > 0) {
-        sentences.push(`Le cumul pluviométrique le plus important observé sur l'épisode est de ${maxRain} mm à ${bestRainSt.name}.`);
-      }
-    } else if (params.type === 'PLUIE') {
-      if (maxRain !== null) {
-        sentences.push(
-          `Le cumul pluviométrique maximal enregistré atteint ${maxRain} mm à ${bestRainSt.name} (${bestRainSt.distance} km), avec ${s1.obs?.rr !== null ? s1.obs.rr + ' mm' : 'N/D'} relevés sur le poste principal de ${s1.name}.`
-        );
-      }
-      if (maxGust !== null && maxGust >= 50) {
-        sentences.push(`Des rafales de vent concomitantes ont été mesurées jusqu'à ${maxGust} km/h à ${bestWindSt.name}.`);
-      }
-    } else if (params.type === 'GEL') {
-      if (minT !== null) {
-        sentences.push(
-          `La température minimale observée s'établit à ${minT}°C à ${s1.name} (${s1.distance} km), confirmant la survenue de températures négatives sous abri.`
-        );
-      }
-    } else if (params.type === 'CHALEUR') {
-      if (maxT !== null) {
-        sentences.push(
-          `La température maximale mesurée atteint ${maxT}°C à ${s1.name} (${s1.distance} km) au cours de la journée.`
-        );
-      }
-    } else if (params.type === 'FOUDRE') {
-      sentences.push(
-        `Aucune donnée de détection de foudre n'est intégrée à cette analyse. Le présent rapport décrit uniquement les conditions météorologiques observées sur le réseau de stations.`
-      );
-      if (maxGust !== null) sentences.push(`Rafale maximale observée : ${maxGust} km/h à ${bestWindSt.name}.`);
-      if (maxRain !== null) sentences.push(`Cumul de pluie observé : ${maxRain} mm à ${bestRainSt.name}.`);
-    } else {
-      if (maxGust !== null) sentences.push(`Rafale maximale observée : ${maxGust} km/h (${bestWindSt.name}).`);
-      if (maxRain !== null) sentences.push(`Cumul pluviométrique : ${maxRain} mm (${bestRainSt.name}).`);
-    }
+    let text = `L'analyse météorologique pour la commune de ${sinistreInfo.commune || 'déclarée'} (${sinistreInfo.codePostal || ''}) à la date du ${sinistreInfo.dateSinistre || 'sélectionnée'} a été établie à partir des stations officielles Météo-France les plus proches. `;
 
-    // Conclusion sobre
-    sentences.push(
-      `Les valeurs présentées dans ce rapport sont issues des sources météorologiques indiquées et sont associées aux stations, dates et heures correspondantes afin d'en assurer la traçabilité.`
-    );
-
-    // KPI Cards for Page 1
-    const kpis = [];
     if (maxGust !== null) {
-      kpis.push({
-        icon: '💨',
-        label: 'Rafale maximale observée',
-        val: `${maxGust} km/h`,
-        sub: `${bestWindSt.name} (${bestWindSt.distance} km)${bestWindSt.obs?.hxi ? ' à ' + bestWindSt.obs.hxi : ''}`
-      });
+      text += `La vitesse de vent maximale enregistrée sur le secteur est de ${maxGust} km/h à la station de ${bestWindSt.name} (${bestWindSt.distance} km). `;
     }
-    if (maxRain !== null) {
-      kpis.push({
-        icon: '🌧️',
-        label: 'Cumul maximal de pluie',
-        val: `${maxRain} mm`,
-        sub: `${bestRainSt.name} (${bestRainSt.distance} km)`
-      });
+    if (maxRain !== null && maxRain > 0) {
+      text += `Le cumul de précipitations mesuré s'élève à ${maxRain} mm à ${bestRainSt.name}. `;
     }
-    if (maxT !== null && (params.type === 'CHALEUR' || params.type === 'ORAGE' || params.type === 'GENERAL')) {
-      kpis.push({
-        icon: '🌡️',
-        label: 'Température maximale',
-        val: `${maxT} °C`,
-        sub: `Station de ${s1.name}`
-      });
+    if (minT !== null && maxT !== null) {
+      text += `Les températures observées sous abri s'échelonnent de ${minT}°C (Tn) à ${maxT}°C (Tx). `;
     }
-    if (minT !== null && params.type === 'GEL') {
-      kpis.push({
-        icon: '🧊',
-        label: 'Température minimale',
-        val: `${minT} °C`,
-        sub: `Station de ${s1.name}`
-      });
-    }
-    kpis.push({
-      icon: '📍',
-      label: 'Station la plus proche',
-      val: `${s1.name}`,
-      sub: `Distante de ${s1.distance} km`
-    });
+
+    text += `L'indice de représentativité des mesures est qualifié d'${confLevel.toLowerCase()} (distance de la station principale : ${s1?.distance || 'N/D'} km).`;
 
     return {
-      text: sentences.join('\n\n'),
-      kpis: kpis.slice(0, 4),
-      params
+      text,
+      confidence: { level: confLevel, score: finalScore },
+      kpis
     };
   }
 };
