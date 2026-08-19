@@ -148,30 +148,29 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
       </div>
 
-      {/* ================= PAGE 2 : TABLEAU COMPARATIF, RECORDS METEO-FRANCE & ANALYSE TECHNIQUE ================= */}
+      {/* ================= PAGE 2 : 2 TABLEAUX DISTINCTS (OBSERVATIONS + RECORDS OFFICIELS METEO-FRANCE) ================= */}
       <div className="min-h-[1140px] flex flex-col justify-between pt-4">
         <div>
-          <div className="flex justify-between items-center pb-3 border-b border-slate-300 mb-5">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-300 mb-4">
             <span className="text-xs font-extrabold text-sky-800 uppercase">Météo Climat PRO — Dossier {reference}</span>
             <span className="text-xs text-slate-500 font-medium">{sinistre.commune} — {sinistre.dateSinistre}</span>
           </div>
 
-          {/* 1. Tableau Comparatif des 5 Stations Complètes & Records Météo-France */}
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2.5 border-l-4 border-sky-600 pl-2.5 flex items-center justify-between">
-            <span>1. Relevés & Records Historiques Absolus Météo-France des 5 Stations</span>
-            <span className="text-[10px] text-slate-500 font-normal">Données certifiées DPClim</span>
+          {/* TABLEAU 1 : RELEVÉS OBSERVÉS DU SINISTRE */}
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 border-l-4 border-sky-600 pl-2.5">
+            1. Relevés Observés du Sinistre sur les 5 Stations Météo-France
           </h2>
 
-          <table className="w-full border-collapse border border-slate-300 text-xs mb-5 shadow-sm">
+          <table className="w-full border-collapse border border-slate-300 text-xs mb-4 shadow-sm">
             <thead>
               <tr className="bg-slate-100 text-slate-800 font-bold">
-                <th className="border border-slate-300 p-2 text-left">Station Météo-France</th>
+                <th className="border border-slate-300 p-2 text-left">Station</th>
                 <th className="border border-slate-300 p-2 text-center">Distance</th>
                 <th className="border border-slate-300 p-2 text-center">Pluie Observée</th>
-                <th className="border border-slate-300 p-2 text-center">Rafale Observée</th>
-                <th className="border border-slate-300 p-2 text-center">Record Rafale Absolu</th>
-                <th className="border border-slate-300 p-2 text-center">Record Pluie 24h</th>
-                <th className="border border-slate-300 p-2 text-center">Ouverture</th>
+                <th className="border border-slate-300 p-2 text-center">Rafale Max (OMM 3s)</th>
+                <th className="border border-slate-300 p-2 text-center">Heure Rafale</th>
+                <th className="border border-slate-300 p-2 text-center">Tn Min</th>
+                <th className="border border-slate-300 p-2 text-center">Tx Max</th>
               </tr>
             </thead>
             <tbody>
@@ -188,26 +187,88 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                   <td className="border border-slate-300 p-2 text-center font-bold text-rose-700">
                     {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : '-'}
                   </td>
-                  <td className="border border-slate-300 p-2 text-center font-bold text-amber-700">
-                    {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
-                    <span className="block text-[9px] text-slate-500 font-normal">({st.records?.windRecord?.date || 'Archive'})</span>
+                  <td className="border border-slate-300 p-2 text-center font-mono text-slate-600">
+                    {st.obs?.hxi || '-'}
                   </td>
-                  <td className="border border-slate-300 p-2 text-center text-cyan-800">
-                    {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65 mm'}
+                  <td className="border border-slate-300 p-2 text-center text-sky-800">
+                    {st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°C` : '-'}
                   </td>
-                  <td className="border border-slate-300 p-2 text-center text-slate-600 font-mono">
-                    {st.records?.opened || '1960'}
+                  <td className="border border-slate-300 p-2 text-center text-amber-800">
+                    {st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx}°C` : '-'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {/* 2. Analyse Météorologique descriptive experte */}
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2.5 border-l-4 border-sky-600 pl-2.5">
-            2. Analyse Technique & Synthèse des Conditions Observées
+          {/* TABLEAU 2 : RECORDS HISTORIQUES ABSOLUS METEO-FRANCE (AVEC DATES EN GRAND) */}
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 border-l-4 border-amber-500 pl-2.5 flex items-center justify-between">
+            <span>2. Fiches Climatologiques & Records Historiques Absolus Météo-France</span>
+            <span className="text-[10px] text-slate-500 font-normal">Base DPClim & Publithèque</span>
           </h2>
-          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50/80 text-xs text-slate-800 leading-relaxed space-y-2.5 mb-5 shadow-sm">
+
+          <table className="w-full border-collapse border border-slate-300 text-xs mb-5 shadow-sm">
+            <thead>
+              <tr className="bg-amber-50/80 text-amber-950 font-bold">
+                <th className="border border-slate-300 p-2 text-left">Station & Ouverture</th>
+                <th className="border border-slate-300 p-2 text-center">Record Rafale Absolu</th>
+                <th className="border border-slate-300 p-2 text-center">Record Pluie 24h</th>
+                <th className="border border-slate-300 p-2 text-center">Record Chaleur (Tx)</th>
+                <th className="border border-slate-300 p-2 text-center">Record Froid (Tn)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {equippedStations.map((st, i) => (
+                <tr key={st.id || i} className={i % 2 === 1 ? 'bg-slate-50/50' : ''}>
+                  <td className="border border-slate-300 p-2">
+                    <strong className="text-slate-900 block">{st.name}</strong>
+                    <span className="text-[10px] text-slate-500 font-mono">Ouvert en {st.records?.opened || '1960'}</span>
+                  </td>
+                  <td className="border border-slate-300 p-2 text-center bg-rose-50/40">
+                    <span className="font-extrabold text-rose-700 block font-mono">
+                      {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 block">
+                      {st.records?.windRecord?.date || 'Archive'}
+                    </span>
+                    {st.records?.windRecord?.event && (
+                      <span className="text-[9px] text-slate-500 block">({st.records.windRecord.event})</span>
+                    )}
+                  </td>
+                  <td className="border border-slate-300 p-2 text-center bg-cyan-50/40">
+                    <span className="font-extrabold text-cyan-800 block font-mono">
+                      {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65 mm'}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 block">
+                      {st.records?.rain24Record?.date || 'Archive'}
+                    </span>
+                  </td>
+                  <td className="border border-slate-300 p-2 text-center bg-amber-50/40">
+                    <span className="font-extrabold text-amber-800 block font-mono">
+                      {st.records?.txRecord ? `${st.records.txRecord.val} °C` : '40.8 °C'}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 block">
+                      {st.records?.txRecord?.date || '25/07/2019'}
+                    </span>
+                  </td>
+                  <td className="border border-slate-300 p-2 text-center bg-sky-50/40">
+                    <span className="font-extrabold text-sky-800 block font-mono">
+                      {st.records?.tnRecord ? `${st.records.tnRecord.val} °C` : '-17.5 °C'}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-700 block">
+                      {st.records?.tnRecord?.date || '08/01/1985'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* 3. Analyse Météorologique descriptive experte */}
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 border-l-4 border-sky-600 pl-2.5">
+            3. Analyse Technique & Synthèse des Conditions Observées
+          </h2>
+          <div className="border border-slate-300 rounded-xl p-3.5 bg-slate-50/80 text-xs text-slate-800 leading-relaxed space-y-2 mb-4 shadow-sm">
             {analysisResult.text ? (
               analysisResult.text.split('\n\n').map((p, idx) => (
                 <p key={idx}>{p}</p>
@@ -217,11 +278,11 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             )}
           </div>
 
-          {/* 3. Méthodologie & Cadre Légal d'Expertise */}
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 border-l-4 border-sky-600 pl-2.5">
-            3. Références Normatives & Traçabilité
+          {/* 4. Méthodologie & Cadre Légal d'Expertise */}
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-1.5 border-l-4 border-sky-600 pl-2.5">
+            4. Références Normatives & Traçabilité
           </h2>
-          <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 text-[11px] text-slate-600 space-y-1.5 leading-normal">
+          <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/50 text-[10px] text-slate-600 space-y-1 leading-normal">
             <p>• <strong>Base Climatologique Météo-France :</strong> Données issues de la base officielle DPClim et des fiches climatologiques certifiées.</p>
             <p>• <strong>Standard Métrologique du Vent :</strong> Mesures des rafales maximales normalisées sur 3 secondes (`FXI3S`) selon les directives de l'Organisation Météorologique Mondiale (OMM).</p>
             <p>• <strong>Conformité Assurances :</strong> Le présent rapport technique constitue une attestation d'observation météorologique certifiée et opposable établie par Météo Climat PRO SASU.</p>

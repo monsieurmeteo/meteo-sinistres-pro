@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
   Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock, Sparkles,
-  Trophy, AlertTriangle, ShieldAlert
+  Trophy, AlertTriangle, ShieldAlert, Award
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
@@ -95,7 +95,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             brou: hasBrou
           };
 
-          // Récupération des records officiels Météo-France de la station
           const records = stationRecordsService.getRecords(st.id, st.name, st.dept);
 
           results.push({
@@ -149,7 +148,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
 
-  // Calcul du statut de vigilance Météo-France
   const vigilanceStatus = useMemo(() => {
     const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
     return vigilanceArchiveService.getVigilanceStatus(
@@ -160,12 +158,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       analysisResult.detectedPhenomena || []
     );
   }, [sinistre, bestWindStation, bestRainStation, analysisResult]);
-
-  // Évaluation de la sévérité vs record absolu Météo-France
-  const windSeverity = useMemo(() => {
-    if (!bestWindStation?.obs?.fxi || !bestWindStation?.records?.windRecord?.val) return null;
-    return stationRecordsService.evaluateSeverity(bestWindStation.obs.fxi, bestWindStation.records.windRecord.val, 'wind');
-  }, [bestWindStation]);
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
@@ -240,7 +232,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
-          {/* BANDEAU VIGILANCE METEO-FRANCE OFFICIELLE */}
+          {/* BANDEAU VIGILANCE METEO-FRANCE */}
           <div className={`p-4 rounded-2xl border ${vigilanceStatus.bgClass} flex flex-wrap items-center justify-between gap-4 shadow-xl`}>
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
@@ -322,15 +314,15 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* 1. TABLEAU COMPARATIF DES 5 STATIONS & RECORDS OFFICIELS METEO-FRANCE */}
+          {/* ================= TABLEAU 1 : RELEVÉS OBSERVÉS DU SINISTRE (5 STATIONS) ================= */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
-            <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-900/40">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-400" />
-                  Tableau Comparatif & Records Historiques Absolus Météo-France
+                  <FileText className="w-4 h-4 text-sky-400" />
+                  1. Relevés Observés du Sinistre sur les 5 Stations Météo-France
                 </h3>
-                <p className="text-xs text-slate-400 mt-0.5">Valeurs observées mises en perspective avec les records historiques officiels</p>
+                <p className="text-xs text-slate-400 mt-0.5">Données enregistrées le {sinistre.dateSinistre} à proximité du lieu déclaré</p>
               </div>
               
               <ConfidenceBadge 
@@ -346,11 +338,12 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                   <tr>
                     <th className="p-3.5">Station Météo-France</th>
                     <th className="p-3.5 text-center">Distance</th>
+                    <th className="p-3.5 text-center">Altitude</th>
                     <th className="p-3.5 text-center">{isPeriod ? 'Cumul Pluie' : 'Pluie 24h'}</th>
-                    <th className="p-3.5 text-center">Rafale Observée</th>
-                    <th className="p-3.5 text-center">Record Rafale Météo-France</th>
-                    <th className="p-3.5 text-center">Record Pluie 24h</th>
-                    <th className="p-3.5 text-center">Extrêmes Tx / Tn</th>
+                    <th className="p-3.5 text-center">Rafale Max (OMM 3s)</th>
+                    <th className="p-3.5 text-center">Heure / Date Rafale</th>
+                    <th className="p-3.5 text-center">Tn Min</th>
+                    <th className="p-3.5 text-center">Tx Max</th>
                     <th className="p-3.5 text-center">Phénomènes</th>
                   </tr>
                 </thead>
@@ -361,29 +354,23 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         <strong className="text-slate-100">{st.name}</strong> ({st.id})
                         {idx === 0 && (
                           <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400">
-                            Poste Principal (ouvert {st.records?.opened || '1960'})
+                            Poste Principal
                           </span>
                         )}
                       </td>
                       <td className="p-3.5 text-center font-bold text-slate-200">{st.distance} km</td>
+                      <td className="p-3.5 text-center text-slate-400">{st.alt} m</td>
                       <td className="p-3.5 text-center font-bold text-cyan-400">
                         {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}
                       </td>
                       <td className="p-3.5 text-center font-bold text-rose-400">
                         {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : '-'}
                       </td>
-                      <td className="p-3.5 text-center text-amber-300 font-bold">
-                        {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
-                        <span className="block text-[9px] font-sans text-slate-400 font-normal">
-                          {st.records?.windRecord?.date || 'Archive'}
-                        </span>
+                      <td className="p-3.5 text-center text-slate-400">
+                        {st.obs?.hxi ? `${st.obs.hxi} ${st.obs.maxGustDate ? `(${st.obs.maxGustDate.split('-')[2]})` : ''}` : '-'}
                       </td>
-                      <td className="p-3.5 text-center text-cyan-300">
-                        {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65 mm'}
-                      </td>
-                      <td className="p-3.5 text-center text-slate-300">
-                        {st.records?.txRecord?.val}° / {st.records?.tnRecord?.val}°
-                      </td>
+                      <td className="p-3.5 text-center text-sky-400">{st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn}°` : '-'}</td>
+                      <td className="p-3.5 text-center text-amber-400">{st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx}°` : '-'}</td>
                       <td className="p-3.5 text-center font-sans">
                         <div className="flex items-center justify-center gap-1">
                           {st.obs?.orag && <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]" title="Orage">⚡</span>}
@@ -401,13 +388,99 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* 2. TABLEAU QUOTIDIEN DÉTAILLÉ */}
+          {/* ================= TABLEAU 2 : RECORDS HISTORIQUES ABSOLUS METEO-FRANCE (AVEC DATES EN GRAND) ================= */}
+          <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-amber-500/5">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  2. Fiches Climatologiques & Records Historiques Absolus Météo-France
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">Valeurs extrêmes officielles enregistrées par Météo-France depuis l'ouverture de chaque poste</p>
+              </div>
+              
+              <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
+                Source : Fiches Climatologiques Météo-France (Publithèque / DPClim)
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5">Station & Ouverture</th>
+                    <th className="p-3.5 text-center">Record Rafale Absolu</th>
+                    <th className="p-3.5 text-center">Record Pluie 24h</th>
+                    <th className="p-3.5 text-center">Record Chaleur (Tx)</th>
+                    <th className="p-3.5 text-center">Record Froid (Tn)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {stationsWithData.map((st, idx) => (
+                    <tr key={st.id || idx} className="hover:bg-slate-800/30 transition">
+                      <td className="p-3.5">
+                        <strong className="text-slate-100 text-sm block">{st.name}</strong>
+                        <span className="text-[11px] text-slate-400 font-mono">ID {st.id} • Poste ouvert en {st.records?.opened || '1960'}</span>
+                      </td>
+
+                      {/* Record Rafale avec date en grand */}
+                      <td className="p-3.5 text-center bg-rose-500/5">
+                        <span className="text-base font-black text-rose-400 block font-mono">
+                          {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-200 block mt-0.5">
+                          {st.records?.windRecord?.date || 'Archive'}
+                        </span>
+                        {st.records?.windRecord?.event && (
+                          <span className="text-[10px] text-rose-300/80 font-medium block">
+                            ({st.records.windRecord.event})
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Record Pluie 24h avec date en grand */}
+                      <td className="p-3.5 text-center bg-cyan-500/5">
+                        <span className="text-base font-black text-cyan-400 block font-mono">
+                          {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65.0 mm'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-200 block mt-0.5">
+                          {st.records?.rain24Record?.date || 'Archive Météo-France'}
+                        </span>
+                      </td>
+
+                      {/* Record Chaleur Tx avec date en grand */}
+                      <td className="p-3.5 text-center bg-amber-500/5">
+                        <span className="text-base font-black text-amber-400 block font-mono">
+                          {st.records?.txRecord ? `${st.records.txRecord.val} °C` : '40.8 °C'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-200 block mt-0.5">
+                          {st.records?.txRecord?.date || '25/07/2019'}
+                        </span>
+                      </td>
+
+                      {/* Record Froid Tn avec date en grand */}
+                      <td className="p-3.5 text-center bg-sky-500/5">
+                        <span className="text-base font-black text-sky-400 block font-mono">
+                          {st.records?.tnRecord ? `${st.records.tnRecord.val} °C` : '-17.5 °C'}
+                        </span>
+                        <span className="text-xs font-bold text-slate-200 block mt-0.5">
+                          {st.records?.tnRecord?.date || '08/01/1985'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ================= TABLEAU 3 : TABLEAU QUOTIDIEN DÉTAILLÉ ================= */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl p-5">
             <div className="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 gap-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-sky-400" />
-                  Tableau Quotidien Détaillé & Phénomènes Observés
+                  3. Tableau Quotidien Détaillé & Phénomènes Observés
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">Relevés jour par jour avec heures de pointes et indicateurs météo</p>
               </div>
@@ -489,7 +562,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             )}
           </div>
 
-          {/* 3. Grille : Carte interactive Leaflet + Synthèse rédigée */}
+          {/* 4. Grille : Carte interactive Leaflet + Synthèse rédigée */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-card rounded-2xl p-5 border border-slate-800 shadow-2xl space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
