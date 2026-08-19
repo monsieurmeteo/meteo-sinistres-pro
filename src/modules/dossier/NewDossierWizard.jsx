@@ -27,15 +27,22 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   const [numContrat, setNumContrat] = useState('POL-2026-9812');
   const [compagnieAssurance, setCompagnieAssurance] = useState('AXA Assurances');
 
-  // Informations Sinistre
+  // Mode Date : 'single' (date unique) ou 'period' (période)
+  const [dateMode, setDateMode] = useState('single');
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const threeDaysAgo = new Date();
+  threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+  const [dateSinistre, setDateSinistre] = useState(yesterday.toISOString().split('T')[0]);
+  const [dateDebut, setDateDebut] = useState(threeDaysAgo.toISOString().split('T')[0]);
+  const [dateFin, setDateFin] = useState(yesterday.toISOString().split('T')[0]);
+  const [heureSinistre, setHeureSinistre] = useState('17h30');
+
   const [numSinistre, setNumSinistre] = useState(`SIN-${Date.now().toString().slice(-6)}`);
   const [sinistreType, setSinistreType] = useState(SINISTRE_TYPES[0]);
   const [customSinistreType, setCustomSinistreType] = useState('');
-  
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const [dateSinistre, setDateSinistre] = useState(yesterday.toISOString().split('T')[0]);
-  const [heureSinistre, setHeureSinistre] = useState('17h30');
   const [description, setDescription] = useState('Infiltration et toiture endommagée suite à un violent épisode de vent et fortes pluies');
   const [observations, setObservations] = useState('');
 
@@ -107,6 +114,8 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
       stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
     }
 
+    const effectiveDateSinistre = dateMode === 'single' ? dateSinistre : `${dateDebut} au ${dateFin}`;
+
     const dossier = {
       id: 'dossier_' + Date.now(),
       status: 'Analyse en cours',
@@ -127,8 +136,11 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
         codePostal: loc.postcode || '',
         lat: loc.lat,
         lon: loc.lon,
-        dateSinistre,
-        heureSinistre,
+        dateMode,
+        dateSinistre: effectiveDateSinistre,
+        dateDebut: dateMode === 'single' ? dateSinistre : dateDebut,
+        dateFin: dateMode === 'single' ? dateSinistre : dateFin,
+        heureSinistre: dateMode === 'single' ? heureSinistre : 'Sur la période',
         description,
         observations
       },
@@ -147,7 +159,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             Nouveau Dossier de Sinistre
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Création d'une attestation météorologique certifiée conforme aux normes d'assurance
+            Analyse d'une date unique ou d'une période d'intempéries sur les 5 stations Météo-France les plus proches
           </p>
         </div>
         <button
@@ -298,7 +310,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             <div className="mt-4 pt-4 border-t border-slate-800">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
                 <span>5 Stations Météo-France de référence retenues :</span>
-                <span className="text-emerald-400 text-[11px] font-normal">Capteurs officiels Météo-France</span>
+                <span className="text-emerald-400 text-[11px] font-normal">Capteurs certifiés Météo-France</span>
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
@@ -324,13 +336,37 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           )}
         </div>
 
-        {/* Section 3 : Date, Aléa & Circonstances */}
+        {/* Section 3 : Date unique OU Période & Circonstances */}
         <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
-            <FileText className="w-5 h-5 text-sky-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-              3. Date & Circonstances du Sinistre
-            </h3>
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-sky-400" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+                3. Temporalité du Sinistre (Date Unique ou Période)
+              </h3>
+            </div>
+
+            {/* Toggle Date Unique / Période */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setDateMode('single')}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  dateMode === 'single' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Date Unique
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateMode('period')}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  dateMode === 'period' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Période (Plusieurs jours)
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,25 +383,51 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Date du sinistre *</label>
-              <input
-                type="date"
-                required
-                value={dateSinistre}
-                onChange={e => setDateSinistre(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
-              />
-              <span className="text-[10px] text-slate-400 mt-1 block">Archives officielles Météo-France de 1950 à aujourd'hui</span>
-            </div>
+            {/* Date unique */}
+            {dateMode === 'single' ? (
+              <div>
+                <label className="text-xs font-semibold text-slate-300 block mb-1">Date exacte du sinistre *</label>
+                <input
+                  type="date"
+                  required
+                  value={dateSinistre}
+                  onChange={e => setDateSinistre(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                />
+              </div>
+            ) : (
+              /* Période (Date début et Date fin) */
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Date de Début *</label>
+                  <input
+                    type="date"
+                    required
+                    value={dateDebut}
+                    onChange={e => setDateDebut(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1">Date de Fin *</label>
+                  <input
+                    type="date"
+                    required
+                    value={dateFin}
+                    onChange={e => setDateFin(e.target.value)}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1">Heure approximative</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Heure approximative / Plage</label>
               <input
                 type="text"
                 value={heureSinistre}
                 onChange={e => setHeureSinistre(e.target.value)}
-                placeholder="Ex: 17h30 ou vers 18h"
+                placeholder={dateMode === 'single' ? 'Ex: 17h30 ou vers 18h' : 'Ex: Pic d\'intensité le 2ème jour'}
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -376,7 +438,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Ex: Toiture endommagée, tuiles arrachées..."
+                placeholder="Ex: Inondation par ruissellement, toiture arrachée..."
                 className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -389,7 +451,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             type="submit"
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-sm font-bold text-white shadow-xl shadow-sky-600/30 transition transform hover:-translate-y-0.5"
           >
-            Lancer l'analyse météorologique (5 Stations Météo-France)
+            Lancer l'analyse {dateMode === 'period' ? 'de la période' : 'de la date'} (5 Stations)
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
