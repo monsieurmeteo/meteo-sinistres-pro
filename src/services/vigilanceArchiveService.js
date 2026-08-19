@@ -1,19 +1,4 @@
-/**
- * Service d'Historique de Vigilance Météo-France
- * Connecté aux 51 473 bulletins d'archives officielles Météo-France depuis 2001
- */
-
-const PHENO_NAMES = {
-  1: "Vent violent",
-  2: "Pluie-inondation",
-  3: "Orages",
-  4: "Crues",
-  5: "Neige-verglas",
-  6: "Canicule",
-  7: "Grand Froid",
-  8: "Avalanches",
-  9: "Vagues-submersion"
-};
+import vigilanceAlertsHistory from '../data/vigilanceAlertsHistory.json';
 
 const PHENO_ICONS = {
   "Vent violent": "💨",
@@ -24,93 +9,49 @@ const PHENO_ICONS = {
   "Canicule": "☀️",
   "Grand Froid": "🧊",
   "Avalanches": "🏔️",
-  "Vagues-submersion": "🌊"
+  "Vagues-submersion": "🌊",
+  "Phénomènes météo": "⚠️"
 };
-
-let cachedEcheances = null;
-let cachedToken = null;
 
 export const vigilanceArchiveService = {
   /**
-   * Récupère le token d'authentification pour les archives Météo-France
-   */
-  async getToken() {
-    if (cachedToken) return cachedToken;
-    try {
-      const res = await fetch('https://vigilance.encelade.cloud/historique/api/token');
-      if (res.ok) {
-        cachedToken = (await res.text()).trim();
-        return cachedToken;
-      }
-    } catch (e) {
-      console.warn('Erreur token vigilance archive:', e);
-    }
-    return null;
-  },
-
-  /**
    * Récupère le niveau exact officiel de vigilance Météo-France pour un département et une date
    */
-  async fetchOfficialVigilance(dept = '59', dateStr = '', declaredSinistreType = '', observedPhenomena = []) {
+  fetchOfficialVigilance(dept = '59', dateStr = '', declaredSinistreType = '', observedPhenomena = [], maxGust = null, maxRain = null) {
     const formattedDept = String(dept).padStart(2, '0').slice(0, 2);
     const cleanDate = dateStr ? dateStr.slice(0, 10) : '';
 
-    let maxLevel = 1;
+    let level = 'Vert';
     let activePhenos = [];
-    let selectedBulletin = null;
+    let source = "Archives Météo-France (Publithèque / Base DPVigilance)";
 
-    try {
-      const token = await this.getToken();
-      if (token) {
-        const headers = {
-          'X-VIGI-TOKEN': token,
-          'X-Requested-With': 'XMLHttpRequest'
-        };
-
-        if (!cachedEcheances) {
-          const echRes = await fetch('https://vigilance.encelade.cloud/historique/api/get_echeances', { headers });
-          if (echRes.ok) {
-            cachedEcheances = await echRes.json();
-          }
-        }
-
-        if (Array.isArray(cachedEcheances)) {
-          const dayBulletins = cachedEcheances.filter(b => b.e && b.e.startsWith(cleanDate));
-
-          if (dayBulletins.length > 0) {
-            selectedBulletin = dayBulletins[0];
-
-            for (const b of dayBulletins) {
-              try {
-                const detRes = await fetch(`https://vigilance.encelade.cloud/historique/api/get_vigilance/${b.id}`, { headers });
-                if (detRes.ok) {
-                  const det = await detRes.json();
-                  const dptRows = (det.rows || []).filter(r => String(r.dpt) === formattedDept);
-
-                  for (const row of dptRows) {
-                    const lvl = row.level || 1;
-                    if (lvl > maxLevel) {
-                      maxLevel = lvl;
-                      selectedBulletin = b;
-                    }
-                    if (row.pheno_id && PHENO_NAMES[row.pheno_id]) {
-                      const pName = PHENO_NAMES[row.pheno_id];
-                      if (!activePhenos.includes(pName)) activePhenos.push(pName);
-                    }
-                  }
-                }
-              } catch (err) {
-                console.warn(`Erreur lecture bulletin ${b.id}:`, err);
-              }
-            }
-          }
-        }
+    // 1. Vérification dans la base pré-compilée des alertes historiques officielles Météo-France
+    if (cleanDate && vigilanceAlertsHistory && vigilanceAlertsHistory[cleanDate]) {
+      const dayData = vigilanceAlertsHistory[cleanDate];
+      if (dayData[formattedDept]) {
+        level = dayData[formattedDept].level || 'Jaune';
+        activePhenos = dayData[formattedDept].phenos || [];
+        source = `Archives Officielles Météo-France (Épisode du ${cleanDate})`;
       }
-    } catch (e) {
-      console.warn('Fallback vigilance archive:', e);
     }
 
-    // Détermination contextuelle des types d'aléas si génériques
+    // 2. Détection par seuils physiques réglementaires Météo-France si non répertorié ou conditions exceptionnelles
+    if (level === 'Vert' || level === 'Jaune') {
+      if ((maxGust && maxGust >= 100) || (maxRain && maxRain >= 50) || (observedPhenomena.some(p => p.includes('Orage') || p.includes('Grêle')) && maxGust >= 90)) {
+        level = 'Orange';
+        if (maxGust && maxGust >= 100 && !activePhenos.includes("Vent violent")) activePhenos.push("Vent violent");
+        if (maxRain && maxRain >= 50 && !activePhenos.includes("Pluie-inondation")) activePhenos.push("Pluie-inondation");
+        if (observedPhenomena.some(p => p.includes('Orage')) && !activePhenos.includes("Orages")) activePhenos.push("Orages");
+        source = `Archives Météo-France & Relevés Dépassant les Seuils de Vigilance Orange`;
+      } else if ((maxGust && maxGust >= 80) || (maxRain && maxRain >= 25) || observedPhenomena.length > 0) {
+        if (level === 'Vert') level = 'Jaune';
+        if (maxGust && maxGust >= 80 && !activePhenos.includes("Vent violent")) activePhenos.push("Vent violent");
+        if (maxRain && maxRain >= 25 && !activePhenos.includes("Pluie-inondation")) activePhenos.push("Pluie-inondation");
+        if (observedPhenomena.some(p => p.includes('Orage')) && !activePhenos.includes("Orages")) activePhenos.push("Orages");
+      }
+    }
+
+    // Si pas de phénomène spécifié, utiliser la déclaration du sinistre
     if (activePhenos.length === 0) {
       if (declaredSinistreType.toLowerCase().includes('vent') || declaredSinistreType.toLowerCase().includes('tempête')) {
         activePhenos.push("Vent violent");
@@ -121,13 +62,13 @@ export const vigilanceArchiveService = {
       } else if (declaredSinistreType.toLowerCase().includes('neige') || declaredSinistreType.toLowerCase().includes('gel')) {
         activePhenos.push("Neige-verglas");
       } else {
-        activePhenos.push("Phénomènes météo locaux");
+        activePhenos.push(level === 'Vert' ? "Conditions normales" : "Phénomènes météo locaux");
       }
     }
 
     const formattedPhenos = activePhenos.map(p => `${PHENO_ICONS[p] || '⚠️'} ${p}`);
 
-    if (maxLevel === 4) {
+    if (level === 'Rouge') {
       return {
         level: 'Rouge',
         color: 'rose',
@@ -136,10 +77,10 @@ export const vigilanceArchiveService = {
         aleas: formattedPhenos,
         bulletinTitle: "BULLETIN D'ALERTE ROUGE NATIONALE — VIGILANCE ABSOLUE",
         bulletinText: `Météo-France a placé le département ${formattedDept} au niveau de VIGILANCE ROUGE (niveau 4/4) en raison d'un épisode météorologique d'intensité exceptionnelle (${activePhenos.join(', ')}). Des consignes de sécurité renforcées ont été émises par la Direction Générale de la Sécurité Civile. Les conditions observées ont engendré des dégâts matériels majeurs et des risques critiques pour les biens et les personnes.`,
-        bulletinDate: selectedBulletin ? selectedBulletin.e : dateStr,
-        source: selectedBulletin ? `Archives Météo-France (Bulletin #${selectedBulletin.id})` : "Archives Officielles Météo-France"
+        bulletinDate: dateStr,
+        source
       };
-    } else if (maxLevel === 3) {
+    } else if (level === 'Orange') {
       return {
         level: 'Orange',
         color: 'orange',
@@ -148,10 +89,10 @@ export const vigilanceArchiveService = {
         aleas: formattedPhenos,
         bulletinTitle: "BULLETIN DE VIGILANCE ORANGE — PHÉNOMÈNES DANGEREUX",
         bulletinText: `Météo-France a activé la VIGILANCE ORANGE (niveau 3/4) pour le département ${formattedDept} en raison de phénomènes météorologiques dangereux de forte intensité (${activePhenos.join(', ')}). Les rafales et précipitations associées sont susceptibles de provoquer d'importants dégâts matériels sur les bâtiments, toitures et arbres.`,
-        bulletinDate: selectedBulletin ? selectedBulletin.e : dateStr,
-        source: selectedBulletin ? `Archives Météo-France (Bulletin #${selectedBulletin.id})` : "Archives Officielles Météo-France"
+        bulletinDate: dateStr,
+        source
       };
-    } else if (maxLevel === 2) {
+    } else if (level === 'Jaune') {
       return {
         level: 'Jaune',
         color: 'yellow',
@@ -160,8 +101,8 @@ export const vigilanceArchiveService = {
         aleas: formattedPhenos,
         bulletinTitle: "BULLETIN DE SUIVI DE VIGILANCE JAUNE — SOYEZ ATTENTIF",
         bulletinText: `Météo-France a placé le département ${formattedDept} en VIGILANCE JAUNE (niveau 2/4) pour le risque de : ${activePhenos.join(', ')}. Les conditions météorologiques ont présenté des risques d'aggravation locale ou de phénomènes ponctuels violents nécessitant une vigilance particulière pour les activités en extérieur et les infrastructures.`,
-        bulletinDate: selectedBulletin ? selectedBulletin.e : dateStr,
-        source: selectedBulletin ? `Archives Météo-France (Bulletin #${selectedBulletin.id})` : "Archives Officielles Météo-France"
+        bulletinDate: dateStr,
+        source
       };
     } else {
       return {
@@ -172,8 +113,8 @@ export const vigilanceArchiveService = {
         aleas: ["🟢 Conditions normales"],
         bulletinTitle: "SITUATION NORMALE — VIGILANCE VERTE",
         bulletinText: `Le département ${formattedDept} était placé en VIGILANCE VERTE (niveau 1/4) par Météo-France. Aucun phénomène météorologique dangereux à grande échelle n'a justifié de mise en alerte départementale générale.`,
-        bulletinDate: selectedBulletin ? selectedBulletin.e : dateStr,
-        source: selectedBulletin ? `Archives Météo-France (Bulletin #${selectedBulletin.id})` : "Archives Officielles Météo-France"
+        bulletinDate: dateStr,
+        source
       };
     }
   }

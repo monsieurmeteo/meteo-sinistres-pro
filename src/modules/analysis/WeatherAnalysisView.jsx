@@ -22,7 +22,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [analysisResult, setAnalysisResult] = useState({ text: '', confidence: {}, detectedPhenomena: [] });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
-  const [officialVigilance, setOfficialVigilance] = useState(null);
 
   const { sinistre = {}, assure = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
   const isPeriod = sinistre.dateDebut && sinistre.dateFin && sinistre.dateDebut !== sinistre.dateFin;
@@ -39,18 +38,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       const start = sinistre.dateDebut || sinistre.dateSinistre;
       const end = sinistre.dateFin || sinistre.dateSinistre;
 
-      // 1. Récupérer la vraie vigilance officielle Météo-France avec texte complet
-      const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
-      vigilanceArchiveService.fetchOfficialVigilance(
-        dept, 
-        start, 
-        sinistre.sinistreType || '',
-        analysisResult.detectedPhenomena || []
-      ).then(vigi => {
-        setOfficialVigilance(vigi);
-      }).catch(e => console.warn(e));
-
-      // 2. Récupérer les données de stations
       for (let i = 0; i < selected.length; i++) {
         const st = selected[i];
         setProgressMsg(`Récupération ${st.name} (${i + 1}/${selected.length})…`);
@@ -161,14 +148,19 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
 
-  const currentVigilance = officialVigilance || {
-    level: 'Jaune',
-    bgClass: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300',
-    aleas: ['💨 Vent violent', '🌧️ Pluie'],
-    bulletinTitle: "BULLETIN OFFICIEL DE VIGILANCE METEO-FRANCE",
-    bulletinText: "Le département fait l'objet d'un suivi actif dans les archives officielles Météo-France.",
-    source: "Archives Météo-France"
-  };
+  // Calcul du statut de vigilance Météo-France avec la base officielle locale
+  const currentVigilance = useMemo(() => {
+    const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
+    const start = sinistre.dateDebut || sinistre.dateSinistre;
+    return vigilanceArchiveService.fetchOfficialVigilance(
+      dept,
+      start,
+      sinistre.sinistreType || '',
+      analysisResult.detectedPhenomena || [],
+      bestWindStation?.obs?.fxi,
+      bestRainStation?.obs?.rr
+    );
+  }, [sinistre, bestWindStation, bestRainStation, analysisResult]);
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
@@ -243,7 +235,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
-          {/* ================= BANDEAU DE VIGILANCE METEO-FRANCE AVEC TYPE D'ALÉA ET TEXTE COMPLET ================= */}
+          {/* ================= BANDEAU DE VIGILANCE METEO-FRANCE ================= */}
           <div className={`p-5 rounded-2xl border ${currentVigilance.bgClass} shadow-2xl space-y-3`}>
             <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-slate-700/50">
               <div className="flex items-center gap-3">
