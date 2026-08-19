@@ -169,23 +169,30 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
     const headers = ['Date', 'Tn (°C)', 'Heure Tn', 'Tx (°C)', 'Heure Tx', 'Tm (°C)', 'Pluie (mm)', 'Rafale OMM (km/h)', 'Heure Rafale', 'Dir (°)', 'Vent moyen (km/h)', 'Orage', 'Neige', 'Grêle', 'Gelée', 'Brouillard'];
     const rows = data.map(d => [
       d.date,
-      d.tn ?? '', d.htn ?? '',
-      d.tx ?? '', d.htx ?? '',
-      d.tm ?? '', d.rr ?? '',
-      d.fxi ?? '', d.hxi ?? '',
-      d.dxi ?? '', d.ff ?? '',
-      d.orag ? '1' : '0', d.neig ? '1' : '0', d.grele ? '1' : '0',
-      d.gelee ? '1' : '0', d.brou ? '1' : '0'
+      d.tn !== null && d.tn !== undefined ? d.tn : '',
+      d.htn || '',
+      d.tx !== null && d.tx !== undefined ? d.tx : '',
+      d.htx || '',
+      d.tm !== null && d.tm !== undefined ? d.tm : '',
+      d.rr !== null && d.rr !== undefined ? d.rr : '',
+      d.fxi !== null && d.fxi !== undefined ? d.fxi : '',
+      d.hxi || '',
+      d.dxi || '',
+      d.ff || '',
+      d.orag ? '1' : '0',
+      d.neig ? '1' : '0',
+      d.grele ? '1' : '0',
+      d.gelee ? '1' : '0',
+      d.brou ? '1' : '0'
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join('
-'), ...rows.map(e => e.join('
-'))].join('
-');
+    const headerLine = headers.join(';');
+    const rowLines = rows.map(r => r.join(';')).join('\n');
+    const csvContent = 'data:text/csv;charset=utf-8,' + headerLine + '\n' + rowLines;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `climatologie_${selectedStationId}_${selectedYear}_${selectedMonth}.csv`);
+    link.setAttribute('download', 'climatologie_' + selectedStationId + '_' + selectedYear + '_' + selectedMonth + '.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
