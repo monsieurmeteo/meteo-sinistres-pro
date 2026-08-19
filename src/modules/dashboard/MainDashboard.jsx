@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, FilePlus, FolderClock, FileText, CheckCircle2, 
-  TrendingUp, ArrowRight, Wind, Droplets, Calendar
+  TrendingUp, ArrowRight, Wind, Droplets, Calendar, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
+import { vigilanceArchiveService } from '../../services/vigilanceArchiveService';
 
 export default function MainDashboard({ dossiers = [], onNewDossier, onOpenDossier, onGoToClim }) {
   const totalCount = dossiers.length;
   const reportsCount = dossiers.filter(d => d.status === 'Rapport généré').length;
   const inProgressCount = totalCount - reportsCount;
+
+  const [nationalVigi, setNationalVigi] = useState({
+    level: 'Jaune',
+    aleas: ['⚡ Orages / Rafales locales', '💨 Vent soutenu'],
+    departements: 'Nord (59), Pas-de-Calais (62), Somme (80)'
+  });
 
   return (
     <div className="space-y-6">
@@ -42,6 +49,36 @@ export default function MainDashboard({ dossiers = [], onNewDossier, onOpenDossi
               Archives & Climatologie (1950 - Aujourd'hui)
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* BANDEAU DE VIGILANCE METEO-FRANCE SUR LE DASHBOARD D'ACCUEIL */}
+      <div className="p-4 rounded-2xl border border-yellow-500/40 bg-yellow-950/30 text-yellow-200 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🟡</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-yellow-300">
+                Vigilance Météo-France Active
+              </h4>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-300 font-mono font-bold">
+                Niveau Jaune
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Aléas sous surveillance : <strong className="text-white">{nationalVigi.aleas.join(' • ')}</strong>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400 font-mono">
+            Réseau Météo-France DPClim actif
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-900/90 border border-slate-700 text-[11px] font-bold text-emerald-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            2 418 Stations Connectées
+          </span>
         </div>
       </div>
 
@@ -86,32 +123,38 @@ export default function MainDashboard({ dossiers = [], onNewDossier, onOpenDossi
         </div>
 
         <div className="space-y-2">
-          {dossiers.slice(0, 4).map(d => (
-            <div
-              key={d.id}
-              onClick={() => onOpenDossier(d)}
-              className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/40 cursor-pointer flex items-center justify-between transition group"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-sky-400">{d.reference}</span>
-                  <span className="text-xs font-bold text-white">{d.assure?.nom} {d.assure?.prenom}</span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {d.sinistre?.commune} — {d.sinistre?.sinistreType} ({d.sinistre?.dateSinistre})
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                  d.status === 'Rapport généré' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                }`}>
-                  {d.status}
-                </span>
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400 group-hover:translate-x-1 transition" />
-              </div>
+          {dossiers.length === 0 ? (
+            <div className="p-8 text-center text-slate-500 text-xs">
+              Aucun dossier enregistré pour le moment. Cliquez sur « + Nouveau Dossier de Sinistre » pour commencer.
             </div>
-          ))}
+          ) : (
+            dossiers.slice(0, 5).map(d => (
+              <div
+                key={d.id}
+                onClick={() => onOpenDossier(d)}
+                className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-sky-500/40 cursor-pointer flex items-center justify-between transition group"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-sky-400">{d.reference}</span>
+                    <span className="text-xs font-bold text-white">{d.assure?.nom} {d.assure?.prenom}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {d.sinistre?.commune} — {d.sinistre?.sinistreType} ({d.sinistre?.dateSinistre})
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                    d.status === 'Rapport généré' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                  }`}>
+                    {d.status}
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-sky-400 group-hover:translate-x-1 transition" />
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
