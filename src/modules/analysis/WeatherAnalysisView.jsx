@@ -22,6 +22,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [analysisResult, setAnalysisResult] = useState({ text: '', confidence: {}, detectedPhenomena: [] });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
+  const [officialVigilance, setOfficialVigilance] = useState(null);
 
   const { sinistre = {}, assure = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
   const isPeriod = sinistre.dateDebut && sinistre.dateFin && sinistre.dateDebut !== sinistre.dateFin;
@@ -38,6 +39,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       const start = sinistre.dateDebut || sinistre.dateSinistre;
       const end = sinistre.dateFin || sinistre.dateSinistre;
 
+      // 1. Récupérer la vraie vigilance officielle Météo-France archivée
+      const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
+      vigilanceArchiveService.fetchOfficialVigilance(dept, start).then(vigi => {
+        setOfficialVigilance(vigi);
+      }).catch(e => console.warn(e));
+
+      // 2. Récupérer les données de stations
       for (let i = 0; i < selected.length; i++) {
         const st = selected[i];
         setProgressMsg(`Récupération ${st.name} (${i + 1}/${selected.length})…`);
@@ -148,16 +156,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
 
-  const vigilanceStatus = useMemo(() => {
-    const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
-    return vigilanceArchiveService.getVigilanceStatus(
-      dept,
-      sinistre.dateSinistre,
-      bestWindStation?.obs?.fxi,
-      bestRainStation?.obs?.rr,
-      analysisResult.detectedPhenomena || []
-    );
-  }, [sinistre, bestWindStation, bestRainStation, analysisResult]);
+  const currentVigilance = officialVigilance || {
+    level: 'Jaune',
+    bgClass: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300',
+    aleas: ['Soyez attentif'],
+    justification: "Recherche dans les archives officielles Météo-France...",
+    source: "Archives Météo-France"
+  };
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
@@ -232,24 +237,25 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       {!loading && (
         <>
-          {/* BANDEAU VIGILANCE METEO-FRANCE */}
-          <div className={`p-4 rounded-2xl border ${vigilanceStatus.bgClass} flex flex-wrap items-center justify-between gap-4 shadow-xl`}>
+          {/* BANDEAU VIGILANCE METEO-FRANCE REELLE */}
+          <div className={`p-4 rounded-2xl border ${currentVigilance.bgClass} flex flex-wrap items-center justify-between gap-4 shadow-xl`}>
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-lg ${
-                vigilanceStatus.level === 'Orange' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40' :
-                vigilanceStatus.level === 'Jaune' ? 'bg-yellow-400 text-slate-950' : 'bg-emerald-500 text-white'
+                currentVigilance.level === 'Rouge' ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/50' :
+                currentVigilance.level === 'Orange' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/40' :
+                currentVigilance.level === 'Jaune' ? 'bg-yellow-400 text-slate-950' : 'bg-emerald-500 text-white'
               }`}>
-                {vigilanceStatus.level === 'Orange' ? '🟠' : vigilanceStatus.level === 'Jaune' ? '🟡' : '🟢'}
+                {currentVigilance.level === 'Rouge' ? '🔴' : currentVigilance.level === 'Orange' ? '🟠' : currentVigilance.level === 'Jaune' ? '🟡' : '🟢'}
               </div>
               <div>
                 <h3 className="text-sm font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
-                  Vigilance Météo-France : Niveau {vigilanceStatus.level.toUpperCase()}
-                  <span className="text-xs font-normal opacity-75">({vigilanceStatus.aleas.join(' • ')})</span>
+                  Vigilance Météo-France : Niveau {currentVigilance.level?.toUpperCase()}
+                  <span className="text-xs font-normal opacity-75">({currentVigilance.aleas?.join(' • ')})</span>
                 </h3>
-                <p className="text-xs text-slate-200 mt-0.5">{vigilanceStatus.justification}</p>
+                <p className="text-xs text-slate-200 mt-0.5">{currentVigilance.justification}</p>
               </div>
             </div>
-            <span className="text-[11px] font-mono opacity-60">Source : {vigilanceStatus.source}</span>
+            <span className="text-[11px] font-mono opacity-60">Source : {currentVigilance.source}</span>
           </div>
 
           {/* Cartes KPI Météorologiques Clés */}
@@ -388,7 +394,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             </div>
           </div>
 
-          {/* ================= TABLEAU 2 : RECORDS HISTORIQUES ABSOLUS METEO-FRANCE (AVEC DATES EN GRAND) ================= */}
+          {/* ================= TABLEAU 2 : RECORDS HISTORIQUES ABSOLUS METEO-FRANCE ================= */}
           <div className="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
             <div className="p-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-amber-500/5">
               <div>
@@ -423,7 +429,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         <span className="text-[11px] text-slate-400 font-mono">ID {st.id} • Poste ouvert en {st.records?.opened || '1960'}</span>
                       </td>
 
-                      {/* Record Rafale avec date en grand */}
                       <td className="p-3.5 text-center bg-rose-500/5">
                         <span className="text-base font-black text-rose-400 block font-mono">
                           {st.records?.windRecord ? `${st.records.windRecord.val} km/h` : '125 km/h'}
@@ -438,7 +443,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         )}
                       </td>
 
-                      {/* Record Pluie 24h avec date en grand */}
                       <td className="p-3.5 text-center bg-cyan-500/5">
                         <span className="text-base font-black text-cyan-400 block font-mono">
                           {st.records?.rain24Record ? `${st.records.rain24Record.val} mm` : '65.0 mm'}
@@ -448,7 +452,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         </span>
                       </td>
 
-                      {/* Record Chaleur Tx avec date en grand */}
                       <td className="p-3.5 text-center bg-amber-500/5">
                         <span className="text-base font-black text-amber-400 block font-mono">
                           {st.records?.txRecord ? `${st.records.txRecord.val} °C` : '40.8 °C'}
@@ -458,7 +461,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         </span>
                       </td>
 
-                      {/* Record Froid Tn avec date en grand */}
                       <td className="p-3.5 text-center bg-sky-500/5">
                         <span className="text-base font-black text-sky-400 block font-mono">
                           {st.records?.tnRecord ? `${st.records.tnRecord.val} °C` : '-17.5 °C'}
@@ -609,7 +611,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         dossier={dossier}
         stationsData={stationsWithData}
         analysisResult={analysisResult}
-        vigilanceStatus={vigilanceStatus}
+        vigilanceStatus={currentVigilance}
       />
     </div>
   );
