@@ -190,7 +190,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </h2>
             <div className="grid grid-cols-4 gap-2">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-2 bg-slate-50 text-center shadow-2xs flex flex-col justify-center items-center h-[72px] box-border">
+                <div key={idx} className="border border-slate-200 rounded-xl py-1.5 px-1 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center h-[66px] box-border">
                   <span className="text-[7pt] font-black uppercase text-slate-700 tracking-wider block">
                     {kpi.icon} {kpi.label}
                   </span>
@@ -216,7 +216,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               </span>
             </div>
 
-            <div className="w-full h-[220px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full h-[200px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
