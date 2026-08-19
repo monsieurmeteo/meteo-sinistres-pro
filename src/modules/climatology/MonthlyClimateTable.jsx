@@ -178,7 +178,9 @@ export default function MonthlyClimateTable({ initialStationId = '59343001', ini
       d.gelee ? '1' : '0', d.brou ? '1' : '0'
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(';'), ...rows.map(e => e.join(';'))].join('
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join('
+'), ...rows.map(e => e.join('
+'))].join('
 ');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');

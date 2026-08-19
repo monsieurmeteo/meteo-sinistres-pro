@@ -471,7 +471,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 type="text"
                 value={heureSinistre}
                 onChange={e => setHeureSinistre(e.target.value)}
-                placeholder={dateMode === 'single' ? 'Ex: 17h30 ou vers 18h' : 'Ex: Pic d'intensité le 2ème jour'}
+                placeholder={dateMode === "single" ? "Ex: 17h30 ou vers 18h" : "Ex: Pic intensite le 2eme jour"}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-sky-500 shadow-xs"
               />
             </div>
