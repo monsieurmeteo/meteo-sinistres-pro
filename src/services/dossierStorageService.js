@@ -1,107 +1,97 @@
-/**
- * Gestion du stockage local et persistance des dossiers de sinistres
- */
-const STORAGE_KEY = 'mcp_sinistres_dossiers_v1';
+const STORAGE_KEY = 'meteo_climat_pro_sinistres_v1';
 
 export const dossierStorageService = {
-  getAll() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        const samples = this.getInitialSampleDossiers();
-        this.saveAll(samples);
-        return samples;
-      }
-      return JSON.parse(raw);
-    } catch (e) {
-      console.error('[dossierStorage] Erreur lecture:', e);
-      return [];
-    }
-  },
-
-  getById(id) {
-    const all = this.getAll();
-    return all.find(d => d.id === id) || null;
-  },
-
-  save(dossier) {
-    const all = this.getAll();
-    const existingIndex = all.findIndex(d => d.id === dossier.id);
-    
-    const updated = {
-      ...dossier,
-      updatedAt: new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      all[existingIndex] = updated;
-    } else {
-      updated.createdAt = updated.createdAt || new Date().toISOString();
-      updated.reference = updated.reference || this.generateReference();
-      all.unshift(updated);
-    }
-
-    this.saveAll(all);
-    return updated;
-  },
-
-  delete(id) {
-    const all = this.getAll().filter(d => d.id !== id);
-    this.saveAll(all);
-    return all;
-  },
-
-  saveAll(dossiers) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dossiers));
-    } catch (e) {
-      console.error('[dossierStorage] Erreur sauvegarde:', e);
-    }
-  },
-
   generateReference() {
     const year = new Date().getFullYear();
     const rand = Math.floor(100000 + Math.random() * 900000);
     return `MCP-${year}-${rand}`;
   },
 
-  getInitialSampleDossiers() {
+  getAll() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        const initial = this.getInitialSample();
+        this.saveAll(initial);
+        return initial;
+      }
+      return JSON.parse(raw);
+    } catch (e) {
+      console.warn('Erreur lecture storage:', e);
+      return [];
+    }
+  },
+
+  saveAll(dossiers) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dossiers));
+    } catch (e) {
+      console.error('Erreur écriture storage:', e);
+    }
+  },
+
+  save(dossier) {
+    const all = this.getAll();
+    const existingIndex = all.findIndex(d => d.id === dossier.id);
+    let updated;
+
+    if (existingIndex >= 0) {
+      updated = [...all];
+      updated[existingIndex] = { ...dossier, updatedAt: new Date().toISOString() };
+    } else {
+      const newDossier = {
+        ...dossier,
+        reference: dossier.reference || this.generateReference(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      updated = [newDossier, ...all];
+    }
+
+    this.saveAll(updated);
+    return existingIndex >= 0 ? updated[existingIndex] : updated[0];
+  },
+
+  delete(id) {
+    const all = this.getAll();
+    const updated = all.filter(d => d.id !== id);
+    this.saveAll(updated);
+    return updated;
+  },
+
+  getInitialSample() {
     return [
       {
-        id: 'sample-1',
-        reference: 'MCP-2026-001258',
+        id: 'sample_dossier_01',
+        reference: 'MCP-2026-849102',
         status: 'Rapport généré',
-        createdAt: '2026-08-19T10:00:00Z',
-        updatedAt: '2026-08-19T11:30:00Z',
+        createdAt: '2026-08-04T10:00:00Z',
         assure: {
-          nom: 'Dupont',
-          prenom: 'Jean-Marc',
-          societe: '',
-          adresse: '14 Rue de Valenciennes',
-          codePostal: '59500',
-          commune: 'Douai',
-          telephone: '06 12 34 56 78',
-          email: 'jm.dupont@example.com',
-          numContrat: 'POL-9847291',
+          nom: 'Marlière',
+          prenom: 'Patrick',
+          societe: 'Cabinet Expertise Nord',
+          telephone: '03 20 00 00 00',
+          email: 'patrick@meteo-climat.com',
+          numContrat: 'POL-AXA-2026-001',
           compagnieAssurance: 'AXA Assurances'
         },
         sinistre: {
-          numSinistre: 'SIN-2026-59012',
-          sinistreType: 'Tempête / Fortes rafales',
-          adresseSinistre: '14 Rue de Valenciennes, 59500 Douai',
-          codePostal: '59500',
+          numSinistre: 'SIN-2026-0803',
+          sinistreType: 'Tempête / Vent violent / Fortes rafales',
+          adresseSinistre: '14 Rue de la Paix, 59500 Douai',
           commune: 'Douai',
-          lat: 50.3712,
-          lon: 3.0805,
+          codePostal: '59500',
+          lat: 50.3708,
+          lon: 3.0789,
           dateSinistre: '2026-08-03',
-          heureSinistre: '19:00',
-          description: 'Toiture arrachée et chute de tuiles suite à de très violentes rafales sous orage.',
-          observations: 'Expertise contradictoire requise.'
+          heureSinistre: '14h30',
+          description: 'Arrachement partiel de toiture et infiltration suite aux violentes rafales sous orage.',
+          observations: 'Épisode convectif violent avec rafales normalisées OMM 3s mesurées à 63 km/h sur Lille-Lesquin et 65 km/h sur Valenciennes.'
         },
         selectedStations: [
-          { id: '59178001', name: 'Douai', distance: 1.8, alt: 25 },
-          { id: '59343001', name: 'Lille-Lesquin', distance: 22.4, alt: 47 },
-          { id: '59606004', name: 'Valenciennes', distance: 28.1, alt: 50 }
+          { id: '59178001', name: 'Douai', distance: 1.2, alt: 25, isTop3: true, rank: 1 },
+          { id: '59343001', name: 'Lille-Lesquin', distance: 22.4, alt: 47, isTop3: true, rank: 2 },
+          { id: '59606001', name: 'Valenciennes', distance: 31.8, alt: 50, isTop3: true, rank: 3 }
         ]
       }
     ];

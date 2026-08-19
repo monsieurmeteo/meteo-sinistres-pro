@@ -1,9 +1,9 @@
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip } from 'react-leaflet';
+import React, { useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix pour les icones Leaflet par défaut
+// Fix pour les icônes Leaflet
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -22,25 +22,40 @@ const blueIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
+// Helper pour redimensionner automatiquement la carte Leaflet
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
 export default function SinistreMap({ sinistre, stations = [] }) {
-  if (!sinistre || !sinistre.lat || !sinistre.lon) {
+  if (!sinistre || typeof sinistre.lat !== 'number' || typeof sinistre.lon !== 'number') {
     return (
-      <div className="h-96 rounded-2xl bg-slate-900/60 flex items-center justify-center border border-slate-800 text-slate-400">
-        Coordonnées du sinistre non disponibles pour la carte
+      <div className="h-80 rounded-2xl bg-slate-900/60 flex items-center justify-center border border-slate-800 text-slate-400 text-xs">
+        Localisation du sinistre en attente de coordonnées géographiques
       </div>
     );
   }
 
   const center = [sinistre.lat, sinistre.lon];
+  const mapKey = `${sinistre.lat.toFixed(4)}_${sinistre.lon.toFixed(4)}_${stations.length}`;
 
   return (
     <div className="h-[420px] w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
       <MapContainer
+        key={mapKey}
         center={center}
         zoom={10}
         scrollWheelZoom={false}
         className="h-full w-full z-0"
       >
+        <MapResizer />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -62,7 +77,7 @@ export default function SinistreMap({ sinistre, stations = [] }) {
           </Tooltip>
         </Marker>
 
-        {/* Marqueurs des 3 stations 🔵 + Lignes de liaison */}
+        {/* Marqueurs des 3 stations 🔵 + Lignes */}
         {stations.map((st, idx) => {
           if (!st.lat || !st.lon) return null;
           const stPos = [st.lat, st.lon];
@@ -80,8 +95,8 @@ export default function SinistreMap({ sinistre, stations = [] }) {
                     <p>Altitude : {st.alt} m</p>
                     {st.obs && (
                       <div className="mt-2 pt-2 border-t border-slate-200 text-[11px]">
-                        <p>🌧️ Pluie : <strong>{st.obs.rr ?? '-'} mm</strong></p>
-                        <p>💨 Rafale max : <strong>{st.obs.fxi ?? '-'} km/h</strong> {st.obs.hxi && `(${st.obs.hxi})`}</p>
+                        <p>🌧️ Pluie : <strong>{st.obs.rr !== null && st.obs.rr !== undefined ? `${st.obs.rr} mm` : '-'}</strong></p>
+                        <p>💨 Rafale max : <strong>{st.obs.fxi !== null && st.obs.fxi !== undefined ? `${st.obs.fxi} km/h` : 'Non équipé'}</strong> {st.obs.hxi && `(${st.obs.hxi})`}</p>
                         <p>🌡️ Température : <strong>{st.obs.tn ?? '-'}° / {st.obs.tx ?? '-'}°</strong></p>
                       </div>
                     )}
@@ -92,7 +107,6 @@ export default function SinistreMap({ sinistre, stations = [] }) {
                 </Tooltip>
               </Marker>
 
-              {/* Ligne pointillée géodésique */}
               <Polyline
                 positions={[center, stPos]}
                 pathOptions={{
@@ -107,7 +121,6 @@ export default function SinistreMap({ sinistre, stations = [] }) {
         })}
       </MapContainer>
 
-      {/* Légende flottante */}
       <div className="absolute bottom-4 right-4 z-[400] glass-card px-3 py-2 rounded-xl text-xs space-y-1 shadow-lg border border-slate-700/80">
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
@@ -115,7 +128,7 @@ export default function SinistreMap({ sinistre, stations = [] }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded-full bg-sky-500 inline-block"></span>
-          <span className="text-slate-200">3 Stations Météo-France retenues</span>
+          <span className="text-slate-200">3 Stations Météo-France de référence</span>
         </div>
       </div>
     </div>
