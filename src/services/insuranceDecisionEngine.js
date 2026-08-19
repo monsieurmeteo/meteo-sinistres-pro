@@ -64,8 +64,14 @@ export const insuranceDecisionEngine = {
       category = 'GEL';
     } else if (claimType.includes('foudre') || claimType.includes('électrique') || claimType.includes('electrique')) {
       category = 'FOUDRE';
-    } else if (claimType.includes('orage') || claimType.includes('grêle')) {
+    } else if (claimType.includes('orage') || claimType.includes('grêle') || claimType.includes('grele')) {
       category = 'ORAGE';
+    } else if (claimType.includes('neige') || claimType.includes('poids') || claimType.includes('chute de neige')) {
+      category = 'NEIGE';
+    } else if (claimType.includes('canicule') || claimType.includes('chaleur') || claimType.includes('chaud')) {
+      category = 'CANICULE';
+    } else if (claimType.includes('sécheresse') || claimType.includes('secheresse') || claimType.includes('retrait') || claimType.includes('rga')) {
+      category = 'SECHERESSE';
     }
 
     const allGusts = validStations.map(s => s.obs?.fxi).filter(v => v !== null && v !== undefined);
@@ -125,6 +131,34 @@ export const insuranceDecisionEngine = {
         commentExpert = `L'analyse des postes météorologiques à proximité de ${commune} (${cp}) ne met pas en évidence de gel sévère destructeur. La température minimale relevée (${minTemp !== null ? minTemp + '°C' : 'positive'}) reste supérieure au seuil critique de ${threshold}°C.`;
       }
 
+    } else if (category === 'NEIGE') {
+      const threshold = typeof customThreshold === 'number' ? customThreshold : 20; // 20 mm eq. neige
+      thresholdUsed = threshold;
+      isFavorable = maxRain !== null && maxRain >= threshold;
+      ruleText = `Précipitations neigeuses ≥ ${threshold} mm (équivalent eau) sur l'épisode`;
+      observedSummary = maxRain !== null ? `Précipitations observées : ${maxRain} mm (${bestRainSt.name})` : 'Relevés non disponibles';
+      commentExpert = isFavorable
+        ? `L'analyse des postes météorologiques à proximité de ${commune} (${cp}) confirme un épisode neigeux significatif avec ${maxRain} mm d'équivalent eau le ${dateSinistre}, compatible avec un poids de neige dommageable.`
+        : `L'examen des observations à proximité de ${commune} (${cp}) le ${dateSinistre} ne met pas en évidence d'épisode neigeux d'intensité suffisante pour caractériser un sinistre par poids de la neige.`;
+
+    } else if (category === 'CANICULE') {
+      const threshold = typeof customThreshold === 'number' ? customThreshold : 35;
+      thresholdUsed = threshold;
+      const maxTx = validStations.map(s => s.obs?.tx).filter(v => v != null).reduce((a, b) => Math.max(a, b), -Infinity);
+      const bestTxSt = validStations.find(s => s.obs?.tx === maxTx) || primary;
+      isFavorable = maxTx !== -Infinity && maxTx >= threshold;
+      ruleText = `Température maximale ≥ ${threshold}°C (Forte chaleur)`;
+      observedSummary = maxTx !== -Infinity ? `Température maximale observée : ${maxTx}°C (${bestTxSt.name})` : 'Relevés thermiques non disponibles';
+      commentExpert = isFavorable
+        ? `L'analyse des postes météorologiques à proximité de ${commune} (${cp}) confirme un épisode de forte chaleur avec ${maxTx}°C relevés le ${dateSinistre}, dépassant le seuil de ${threshold}°C.`
+        : `L'examen des observations à proximité de ${commune} (${cp}) le ${dateSinistre} ne confirme pas de chaleur exceptionnelle au-delà du seuil de ${threshold}°C.`;
+
+    } else if (category === 'SECHERESSE') {
+      isFavorable = false;
+      ruleText = `Épisode de sécheresse / Retrait-Gonflement des Argiles (RGA)`;
+      observedSummary = `Données instrumentales insuffisantes — vérifier arrêté CatNat`;
+      commentExpert = `L'analyse d'un sinistre Sécheresse/RGA requiert la vérification d'un arrêté de Catastrophe Naturelle reconnu par l'État pour la commune de ${commune} à la période du ${dateSinistre}.`;
+
     } else { // FOUDRE / ORAGE
       isFavorable = (maxGust !== null && maxGust >= 70) || (maxRain !== null && maxRain >= 20);
       ruleText = `Activité convective orageuse et rafales convectives associées`;
@@ -135,6 +169,22 @@ export const insuranceDecisionEngine = {
       } else {
         commentExpert = `L'examen des observations à proximité de ${commune} (${cp}) le ${dateSinistre} indique des conditions météorologiques calmes sans activité orageuse sévère mesurée sur le réseau instrumental.`;
       }
+    }
+
+    // INDÉTERMINÉ si aucune donnée mesurée disponible (API down, station sans données)
+    const hasAnyData = maxGust !== null || maxRain !== null || minTemp !== null;
+    if (!hasAnyData && category !== 'SECHERESSE') {
+      return {
+        category,
+        isFavorable: null,
+        decision: 'INDÉTERMINÉ — Données Insuffisantes',
+        decisionShort: 'INDÉTERMINÉ',
+        decisionSubtitle: 'Données météorologiques insuffisantes — expertise complémentaire requise',
+        threshold: thresholdUsed,
+        ruleText,
+        observedSummary: 'Aucune observation instrumentale disponible pour la période',
+        commentExpert: `L'interrogation des postes Météo-France dans le rayon de 30 km autour de ${commune} (${cp}) n'a pas permis de collecter de relevés instrumentaux pour la date du ${dateSinistre}. Une expertise complémentaire sur des sources alternatives (radar, réanalyse MERRA-2, témoignages) est nécessaire avant tout verdict définitif.`
+      };
     }
 
     return {

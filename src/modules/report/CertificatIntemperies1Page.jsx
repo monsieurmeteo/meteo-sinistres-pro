@@ -1,3 +1,5 @@
+import QRCode from 'qrcode';
+import { useEffect, useState } from 'react';
 import React from 'react';
 
 export default function CertificatIntemperies1Page({ 
@@ -16,9 +18,13 @@ export default function CertificatIntemperies1Page({
     year: 'numeric'
   });
 
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
-    `https://meteo-sinistres-pro.vercel.app/verify/${reference}`
-  )}`;
+  const [qrUrl, setQrUrl] = useState('');
+  useEffect(() => {
+    QRCode.toDataURL(
+      `https://meteo-sinistres-pro.vercel.app/verify/${reference}`,
+      { width: 120, margin: 1 }
+    ).then(url => setQrUrl(url)).catch(() => setQrUrl(''));
+  }, [reference]);
 
   return (
     <div id="pdf-certificat-container" className="bg-white text-slate-900 font-sans hidden print:block">
@@ -133,7 +139,7 @@ export default function CertificatIntemperies1Page({
           <div>
             <div className="flex justify-between items-center mb-1">
               <h2 className="text-[8pt] font-black uppercase tracking-wider text-slate-900 border-l-4 border-sky-600 pl-1.5">
-                3. Relevés Physiques des Stations Météo-France dans un Rayon de 30 km ({stationsData.length} stations)
+                3. {`Relevés Physiques des Stations Météo-France dans un Rayon de ${Math.max(30, Math.ceil(stationsData.reduce((m, s) => Math.max(m, s.distance || 0), 0)))} km (${stationsData.length} stations)`}
               </h2>
               <span className="text-[6pt] text-slate-500 font-bold">Normes OMM 3s</span>
             </div>
@@ -141,7 +147,7 @@ export default function CertificatIntemperies1Page({
             <table className="w-full border-collapse border border-slate-300 text-[7.5pt] rounded-lg overflow-hidden shadow-2xs">
               <thead>
                 <tr className="bg-slate-100 text-slate-900 font-black border-b-2 border-slate-300">
-                  <th className="border border-slate-300 p-1 text-left">Station de Référence (&lt; 30 km)</th>
+                  <th className="border border-slate-300 p-1 text-left">{`Station de Référence (< ${Math.max(30, Math.ceil(stationsData.reduce((m, s) => Math.max(m, s.distance || 0), 0)))} km)`}</th>
                   <th className="border border-slate-300 p-1 text-center">Distance</th>
                   <th className="border border-slate-300 p-1 text-center">Altitude</th>
                   <th className="border border-slate-300 p-1 text-center">Rafale Max (3s)</th>
@@ -177,23 +183,25 @@ export default function CertificatIntemperies1Page({
             </table>
           </div>
 
-          {/* 6. Détection Foudre & Activité Orageuse */}
-          <div className="border border-slate-200 rounded-lg p-1.5 bg-slate-50 flex items-center justify-between text-[7pt]">
-            <div className="flex items-center gap-2">
-              <span className="text-sm">⚡</span>
-              <div>
-                <strong className="text-slate-900 uppercase block">Activité Orageuse & Détection d'Impacts de Foudre</strong>
-                <span className="text-slate-600">
-                  Réseau de détection foudre dans un rayon de 10 km autour de la commune de {sinistre.commune}.
+          {/* 6. Détection Foudre & Activité Orageuse — uniquement si pertinent */}
+          {(sinistre.sinistreType || '').toLowerCase().match(/foudre|orage|électrique|electrique/) && (
+            <div className="border border-amber-200 rounded-lg p-1.5 bg-amber-50 flex items-center justify-between text-[7pt]">
+              <div className="flex items-center gap-2">
+                <span className="text-sm">⚡</span>
+                <div>
+                  <strong className="text-amber-900 uppercase block">Activité Orageuse & Détection d'Impacts de Foudre</strong>
+                  <span className="text-amber-800 font-medium">
+                    Source foudre temps réel non instrumentée sur ce dossier — vérification complémentaire recommandée (Keraunos / Météorage).
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="font-bold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-300">
+                  Non instrumenté
                 </span>
               </div>
             </div>
-            <div className="text-right">
-              <span className="font-bold text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">
-                0 impact détecté
-              </span>
-            </div>
-          </div>
+          )}
 
           {/* 7. Synthèse Rédigée de l'Expert Météorologue */}
           <div>

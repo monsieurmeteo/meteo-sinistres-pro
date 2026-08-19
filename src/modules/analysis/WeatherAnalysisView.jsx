@@ -156,9 +156,17 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     }
   };
 
+  // Chargement réseau : uniquement quand le dossier change
   useEffect(() => {
     loadStationData();
-  }, [dossier?.id, customThreshold]);
+  }, [dossier?.id]);
+
+  // Recalcul local de la décision assurance (sans re-fetch) quand le seuil change
+  useEffect(() => {
+    if (stationsWithData.length === 0) return;
+    const decision = insuranceDecisionEngine.evaluateClaim(sinistre, stationsWithData, customThreshold);
+    setInsuranceDecision(decision);
+  }, [customThreshold]);
 
   const handleDownloadCertificat1Page = async () => {
     setIsGeneratingPdf1(true);
@@ -408,27 +416,52 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               <Droplets className="w-4 h-4 text-sky-700 stroke-[2.5]" />
             </div>
           </div>
-          <div className="text-3xl font-black text-sky-700 tracking-tight">
-            {primaryStation?.obs?.rr !== null && primaryStation?.obs?.rr !== undefined ? `${primaryStation.obs.rr} mm` : '0 mm'}
-          </div>
-          <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
-            Cumul total de l'événement
-          </p>
+          {(() => {
+            let maxRr = null;
+            let maxRrStation = null;
+            stationsWithData.forEach(st => {
+              if (st.obs?.rr != null && (maxRr === null || st.obs.rr > maxRr)) {
+                maxRr = st.obs.rr;
+                maxRrStation = st;
+              }
+            });
+            return (
+              <>
+                <div className="text-3xl font-black text-sky-700 tracking-tight">
+                  {maxRr !== null ? `${maxRr} mm` : 'Non mesuré'}
+                </div>
+                <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
+                  {maxRrStation ? `Max. sur ${maxRrStation.name} (${maxRrStation.distance} km)` : 'Cumul total de l'événement'}
+                </p>
+              </>
+            );
+          })()}
         </div>
 
         <div className="bg-white rounded-2xl p-5 border-2 border-amber-300 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-amber-950">Températures</span>
+            <span className="text-xs font-black uppercase tracking-wider text-amber-950">Températures Extrêmes</span>
             <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
               <Thermometer className="w-4 h-4 text-amber-700 stroke-[2.5]" />
             </div>
           </div>
-          <div className="text-3xl font-black text-slate-950 tracking-tight">
-            {primaryStation?.obs?.tn !== null ? `${primaryStation.obs.tn}°` : 'Non mesuré'} / {primaryStation?.obs?.tx !== null ? `${primaryStation.obs.tx}°` : 'Non mesuré'}
-          </div>
-          <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
-            Tn minimale / Tx maximale
-          </p>
+          {(() => {
+            let minTn = null, maxTx = null, tnSt = null, txSt = null;
+            stationsWithData.forEach(st => {
+              if (st.obs?.tn != null && (minTn === null || st.obs.tn < minTn)) { minTn = st.obs.tn; tnSt = st; }
+              if (st.obs?.tx != null && (maxTx === null || st.obs.tx > maxTx)) { maxTx = st.obs.tx; txSt = st; }
+            });
+            return (
+              <>
+                <div className="text-3xl font-black text-slate-950 tracking-tight">
+                  {minTn != null ? `${minTn}°` : 'N/M'} / {maxTx != null ? `${maxTx}°` : 'N/M'}
+                </div>
+                <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
+                  Tn min ({tnSt?.name || '—'}) / Tx max ({txSt?.name || '—'})
+                </p>
+              </>
+            );
+          })()}
         </div>
 
         <div className="bg-white rounded-2xl p-5 border-2 border-emerald-300 shadow-sm">
@@ -495,7 +528,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                     {st.obs?.hxi || '-'}
                   </td>
                   <td className="py-3.5 px-3 text-slate-950 font-black font-mono">
-                    {st.obs?.tn !== null ? `${st.obs.tn}°` : '-'} / {st.obs?.tx !== null ? `${st.obs.tx}°` : '-'}
+                    {st.obs?.tn != null ? `${st.obs.tn}°` : '-'} / {st.obs?.tx != null ? `${st.obs.tx}°` : '-'}
                   </td>
                 </tr>
               ))}
@@ -598,7 +631,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                         {day.fxi !== null && day.fxi !== undefined ? `${day.fxi} km/h` : '-'}
                       </td>
                       <td className="py-3 px-3 font-mono font-bold text-slate-800">{day.hxi || '-'}</td>
-                      <td className="py-3 px-3 font-mono font-black text-slate-950">{day.tn !== null ? `${day.tn}°` : '-'} / {day.tx !== null ? `${day.tx}°` : '-'}</td>
+                      <td className="py-3 px-3 font-mono font-black text-slate-950">{day.tn != null ? `${day.tn}°` : '-'} / {day.tx != null ? `${day.tx}°` : '-'}</td>
                       <td className="py-3 px-3 text-center">
                         <span className="text-slate-950 font-black text-xs bg-slate-100 px-3 py-1 rounded-md border-2 border-slate-300 inline-block shadow-2xs">
                           {qualif}
@@ -630,7 +663,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 <div className="p-4 rounded-2xl bg-white border-2 border-rose-300 shadow-xs">
                   <span className="text-xs text-rose-950 uppercase font-black block">Record Absolu Vent</span>
                   <span className="text-2xl font-black text-rose-700 block mt-1">
-                    {tabRec.windRecord?.val ? `${tabRec.windRecord.val} km/h` : 'Non mesuré'}
+                    {tabRec.windRecord?.val != null ? `${tabRec.windRecord.val} km/h` : 'Non archivé'}
                   </span>
                   <span className="text-xs text-slate-700 font-bold block mt-0.5">{tabRec.windRecord?.date || 'Historique'}</span>
                 </div>
@@ -638,7 +671,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 <div className="p-4 rounded-2xl bg-white border-2 border-sky-300 shadow-xs">
                   <span className="text-xs text-sky-950 uppercase font-black block">Record Absolu Pluie 24h</span>
                   <span className="text-2xl font-black text-sky-700 block mt-1">
-                    {tabRec.rainRecord?.val ? `${tabRec.rainRecord.val} mm` : 'Non mesuré'}
+                    {tabRec.rainRecord?.val != null ? `${tabRec.rainRecord.val} mm` : 'Non archivé'}
                   </span>
                   <span className="text-xs text-slate-700 font-bold block mt-0.5">{tabRec.rainRecord?.date || 'Historique'}</span>
                 </div>
@@ -646,7 +679,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 <div className="p-4 rounded-2xl bg-white border-2 border-indigo-300 shadow-xs">
                   <span className="text-xs text-indigo-950 uppercase font-black block">Normale Tn Mensuelle</span>
                   <span className="text-2xl font-black text-indigo-900 block mt-1">
-                    {tabRec.monthlyNormal?.tn !== undefined ? `${tabRec.monthlyNormal.tn}°C` : '14.0°C'}
+                    {tabRec.monthlyNormal?.tn != null ? `${tabRec.monthlyNormal.tn}°C` : 'Non archivé'}
                   </span>
                   <span className="text-xs text-slate-700 font-bold block mt-0.5">Normale 1991-2020</span>
                 </div>
@@ -654,7 +687,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                 <div className="p-4 rounded-2xl bg-white border-2 border-amber-300 shadow-xs">
                   <span className="text-xs text-amber-950 uppercase font-black block">Normale Tx Mensuelle</span>
                   <span className="text-2xl font-black text-amber-800 block mt-1">
-                    {tabRec.monthlyNormal?.tx !== undefined ? `${tabRec.monthlyNormal.tx}°C` : '24.0°C'}
+                    {tabRec.monthlyNormal?.tx != null ? `${tabRec.monthlyNormal.tx}°C` : 'Non archivé'}
                   </span>
                   <span className="text-xs text-slate-700 font-bold block mt-0.5">Normale 1991-2020</span>
                 </div>

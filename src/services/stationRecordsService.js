@@ -367,42 +367,14 @@ export const stationRecordsService = {
       return allStationRecords[idStr];
     }
 
-    // 3. Calcul dynamique personnalisé et unique basé sur l'ID de la station
-    const h = pseudoHash(idStr + stationName);
-    const windVal = 110 + (h % 28); // 110 à 137 km/h
-    const rainVal = Math.round((52 + (h % 35) * 0.8) * 10) / 10; // 52.0 à 79.2 mm
-    const txVal = Math.round((39.2 + ((h >> 3) % 25) * 0.1) * 10) / 10; // 39.2 à 41.6 °C
-    const tnVal = Math.round((-16.0 - ((h >> 2) % 35) * 0.1) * 10) / 10; // -16.0 à -19.4 °C
-    const tnNorm = Math.round((13.0 + ((h >> 4) % 20) * 0.1) * 10) / 10; // 13.0 à 14.9 °C
-    const txNorm = Math.round((23.2 + ((h >> 5) % 25) * 0.1) * 10) / 10; // 23.2 à 25.6 °C
-
-    const windDates = ["18/02/2022 (Eunice)", "28/10/2013 (Christian)", "26/12/1999 (Lothar)", "16/10/1987 (Ouragan)", "09/02/2020 (Ciara)"];
-    const rainDates = ["12/06/2020", "28/05/2018", "07/06/2016", "15/08/2020", "22/06/2021"];
-
+    // 3. Station hors base : données non archivées — ne jamais inventer de valeurs
     return {
       name: stationName || "Station Météo-France",
-      opened: String(1960 + (h % 35)),
-      windRecord: { 
-        val: windVal, 
-        date: windDates[h % windDates.length], 
-        event: "Record Station" 
-      },
-      rainRecord: { 
-        val: rainVal, 
-        date: rainDates[(h >> 1) % rainDates.length] 
-      },
-      txRecord: { 
-        val: txVal, 
-        date: "25/07/2019" 
-      },
-      tnRecord: { 
-        val: tnVal, 
-        date: "08/01/1985" 
-      },
-      monthlyNormal: { 
-        tn: tnNorm, 
-        tx: txNorm 
-      }
+      windRecord: { val: null, date: null },
+      rainRecord: { val: null, date: null },
+      txRecord:   { val: null, date: null },
+      tnRecord:   { val: null, date: null },
+      monthlyNormal: { tn: null, tx: null }
     };
   }
 };
