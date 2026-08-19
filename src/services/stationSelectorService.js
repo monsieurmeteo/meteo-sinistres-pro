@@ -13,7 +13,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Stations Synoptiques & RADOME majeures avec anémomètres certifiés OMM (prioritaires pour le vent)
+// Stations Synoptiques & RADOME majeures avec anémomètres certifiés OMM
 const MAJOR_ANEMO_KEYWORDS = [
   'aeroport', 'aérodrome', 'lesquin', 'valenciennes', 'cambrai', 'dunkerque', 'epinoy',
   'roubaix', 'douai', 'steenvoorde', 'saint-quentin', 'arras', 'glisy', 'amiens',
@@ -28,9 +28,9 @@ export const stationSelectorService = {
   },
 
   /**
-   * ALGORITHME V3 : Sélection intelligente avec garantie de capteurs actifs
+   * Sélection des 5 stations de référence Météo-France les plus proches
    */
-  findBestStations(targetLat, targetLon, targetAlt = 0, claimType = '') {
+  findBestStations(targetLat, targetLon, targetAlt = 0, claimType = '', count = 5) {
     if (!targetLat || !targetLon) return [];
 
     const all = this.getAllStations();
@@ -75,11 +75,11 @@ export const stationSelectorService = {
       qualifiedStations.sort((a, b) => a.distance - b.distance);
     }
 
-    const top3 = qualifiedStations.slice(0, 3);
+    const topStations = qualifiedStations.slice(0, count);
 
-    return top3.map((s, idx) => ({
+    return topStations.map((s, idx) => ({
       ...s,
-      isTop3: true,
+      isTop: true,
       rank: idx + 1
     }));
   }

@@ -36,12 +36,12 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const loadStationData = async () => {
     setLoading(true);
     setError(null);
-    setProgressMsg('Interrogation des stations de référence Météo-France…');
+    setProgressMsg('Interrogation des 5 stations de référence Météo-France…');
 
     try {
       const claimType = sinistre.sinistreType || '';
       
-      let selected = stationSelectorService.findBestStations(sinistre.lat, sinistre.lon, 0, claimType);
+      let selected = stationSelectorService.findBestStations(sinistre.lat, sinistre.lon, 0, claimType, 5);
       if (!selected || selected.length === 0) {
         selected = dossier.selectedStations || [];
       }
@@ -106,7 +106,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
           const summaryObs = {
             date: isPeriod ? `${start} au ${end}` : `${start} au ${end} (Scan 72h)`,
-            rr: Math.round(totalRain * 10) / 10,
+            rr: totalRain > 0 ? Math.round(totalRain * 10) / 10 : (history.length > 0 ? 0 : null),
             fxi: maxGust,
             hxi: maxGustHour,
             maxGustDate: maxGustDate,
@@ -215,7 +215,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       <div className="rounded-3xl p-12 text-center border border-slate-200 bg-white max-w-xl mx-auto my-12 shadow-sm">
         <RefreshCw className="w-8 h-8 text-sky-600 animate-spin mx-auto mb-4" />
         <h2 className="text-base font-bold text-slate-900 mb-1">Expertise Météorologique en cours</h2>
-        <p className="text-xs text-slate-500 font-mono animate-pulse">{progressMsg || 'Chargement des données officielles Météo-France…'}</p>
+        <p className="text-xs text-slate-500 font-mono animate-pulse">{progressMsg || 'Chargement des 5 stations officielles Météo-France…'}</p>
       </div>
     );
   }
@@ -394,7 +394,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             return (
               <>
                 <div className="text-2xl font-black text-slate-900 tracking-tight">
-                  {maxFxi !== null ? `${maxFxi} km/h` : (primaryStation?.obs?.fxi !== null && primaryStation?.obs?.fxi !== undefined ? `${primaryStation.obs.fxi} km/h` : 'N/D')}
+                  {maxFxi !== null ? `${maxFxi} km/h` : (primaryStation?.obs?.fxi !== null && primaryStation?.obs?.fxi !== undefined ? `${primaryStation.obs.fxi} km/h` : 'Non mesuré')}
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1 truncate">
                   {maxFxiStation ? `${maxFxiStation.name} (${maxFxiStation.distance} km)${maxFxiHour ? ` à ${maxFxiHour}` : ''}` : `Station ${primaryStation?.name || 'Météo-France'}`}
@@ -423,7 +423,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             <Thermometer className="w-4 h-4 text-slate-400" />
           </div>
           <div className="text-2xl font-black text-slate-900 tracking-tight">
-            {primaryStation?.obs?.tn !== null ? `${primaryStation.obs.tn}°` : 'N/D'} / {primaryStation?.obs?.tx !== null ? `${primaryStation.obs.tx}°` : 'N/D'}
+            {primaryStation?.obs?.tn !== null ? `${primaryStation.obs.tn}°` : 'Non mesuré'} / {primaryStation?.obs?.tx !== null ? `${primaryStation.obs.tx}°` : 'Non mesuré'}
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
             Tn minimale / Tx maximale
@@ -439,16 +439,16 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             {analysisResult.confidence?.level || 'Élevée'}
           </div>
           <p className="text-[11px] text-slate-500 mt-1 truncate">
-            Réseau instrumenté 3 stations
+            Réseau instrumenté 5 stations
           </p>
         </div>
       </div>
 
-      {/* TABLEAU COMPARATIF DES 3 STATIONS */}
+      {/* TABLEAU COMPARATIF DES 5 STATIONS */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-            Relevés des Stations Météo-France de Référence
+            Relevés des 5 Stations Météo-France les Plus Proches
           </h2>
           <span className="text-[11px] text-slate-500">
             Normes OMM 3 secondes
@@ -486,7 +486,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                     {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '0 mm'}
                   </td>
                   <td className="py-3 px-3 font-bold text-slate-900">
-                    {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : 'Non équipé'}
+                    {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : 'Non mesuré'}
                   </td>
                   <td className="py-3 px-3 text-slate-500 font-mono">
                     {st.obs?.hxi || '-'}
@@ -506,7 +506,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3 flex items-center gap-2">
             <MapPin className="w-3.5 h-3.5 text-slate-400" />
-            Localisation & Stations Proches
+            Localisation & 5 Stations Proches
           </h2>
           <SinistreMap sinistre={sinistre} stations={stationsWithData} />
         </div>
@@ -535,17 +535,17 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
-      {/* HISTORIQUE JOURNALIER AVEC SÉLECTEUR DISCRET */}
+      {/* HISTORIQUE JOURNALIER AVEC SÉLECTEUR DISCRET (5 STATIONS) */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              Observations Journalières Détaillées
+              Observations Journalières Détaillées (5 Stations)
             </h2>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl flex-wrap">
             {stationsWithData.map((st, idx) => (
               <button
                 key={st.id || idx}
@@ -597,7 +597,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           </div>
         ) : (
           <div className="text-center py-6 text-slate-400 text-xs">
-            Aucun historique journalier disponible.
+            Aucun historique journalier disponible pour cette station.
           </div>
         )}
 
@@ -646,7 +646,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         )}
       </div>
 
-      {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE) */}
+      {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE - 5 STATIONS) */}
       <CertificatIntemperies1Page
         dossier={dossier}
         stationsData={stationsWithData}
