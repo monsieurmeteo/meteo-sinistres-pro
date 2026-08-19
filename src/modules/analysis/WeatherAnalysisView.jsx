@@ -36,13 +36,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const loadStationData = async () => {
     setLoading(true);
     setError(null);
-    setProgressMsg('Sélection des 5 stations les plus proches & Interrogation Météo-France…');
+    setProgressMsg('Sélection de toutes les stations dans un rayon de 30 km…');
 
     try {
       const claimType = sinistre.sinistreType || '';
       
-      // Sélection STRICTEMENT les 5 stations les plus proches par distance
-      let selected = stationSelectorService.findBestStations(sinistre.lat, sinistre.lon, 0, claimType, 5);
+      // Sélection de TOUTES les stations dans un rayon de 30 km
+      let selected = stationSelectorService.findBestStations(sinistre.lat, sinistre.lon, 0, claimType, 30);
       if (!selected || selected.length === 0) {
         selected = dossier.selectedStations || [];
       }
@@ -54,7 +54,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
       
-      // Récupération de la vraie vigilance Météo-France à jour
       try {
         const vigi = await vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, sinistre.dateSinistre || start);
         if (vigi && vigi.level) {
@@ -172,7 +171,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     }
   };
 
-  // COULEURS PRONONCÉES & SATURÉES POUR LA VIGILANCE
   const getVigilanceUI = (level) => {
     const lvl = (level || '').toLowerCase();
     if (lvl.includes('rouge')) {
@@ -212,7 +210,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       <div className="rounded-3xl p-12 text-center border-2 border-slate-300 bg-white max-w-xl mx-auto my-12 shadow-md">
         <RefreshCw className="w-10 h-10 text-sky-600 animate-spin mx-auto mb-4 stroke-[2.5]" />
         <h2 className="text-lg font-black text-slate-950 mb-1">Expertise Météorologique en cours</h2>
-        <p className="text-xs text-slate-700 font-mono font-bold animate-pulse">{progressMsg || 'Chargement des 5 stations Météo-France…'}</p>
+        <p className="text-xs text-slate-700 font-mono font-bold animate-pulse">{progressMsg || 'Scan des stations dans un rayon de 30 km…'}</p>
       </div>
     );
   }
@@ -276,7 +274,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
-      {/* BANDEAU CONSIGNE DE GESTION D'ASSURANCE - COULEURS PRONONCÉES */}
+      {/* BANDEAU CONSIGNE DE GESTION D'ASSURANCE */}
       {insuranceDecision && (
         <div className={`p-5 rounded-2xl border-2 transition shadow-sm ${
           insuranceDecision.isFavorable 
@@ -343,7 +341,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       )}
 
-      {/* BANDEAU DE VIGILANCE METEO-FRANCE COULEUR PRONONCÉE */}
+      {/* BANDEAU DE VIGILANCE METEO-FRANCE */}
       {liveVigilance && (
         <div className={`p-4 rounded-2xl border-2 shadow-sm flex flex-wrap items-center justify-between gap-3 ${vigiConfig.bg}`}>
           <div className="flex items-center gap-3">
@@ -368,11 +366,11 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       )}
 
-      {/* 4 CARTES KPI METEO - COULEURS ET VALEURS TRÈS AFFIRMÉES */}
+      {/* 4 CARTES KPI METEO */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 border-2 border-rose-300 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-rose-950">Rafale Max</span>
+            <span className="text-xs font-black uppercase tracking-wider text-rose-950">Rafale Max (Rayon 30 km)</span>
             <div className="w-7 h-7 rounded-lg bg-rose-100 flex items-center justify-center">
               <Wind className="w-4 h-4 text-rose-700 stroke-[2.5]" />
             </div>
@@ -435,25 +433,25 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
         <div className="bg-white rounded-2xl p-5 border-2 border-emerald-300 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-950">Fiabilité</span>
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-950">Couverture 30 km</span>
             <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
               <ShieldCheck className="w-4 h-4 text-emerald-700 stroke-[2.5]" />
             </div>
           </div>
           <div className="text-3xl font-black text-emerald-700 tracking-tight">
-            {analysisResult.confidence?.level || 'Élevée'}
+            {stationsWithData.length} Stations
           </div>
           <p className="text-xs text-slate-800 mt-1 font-extrabold truncate">
-            5 stations les plus proches
+            Réseau instrumenté &lt; 30 km
           </p>
         </div>
       </div>
 
-      {/* TABLEAU COMPARATIF DES 5 STATIONS LES PLUS PROCHES */}
+      {/* TABLEAU DE TOUTES LES STATIONS DANS UN RAYON DE 30 KM */}
       <div className="bg-white rounded-2xl p-6 border-2 border-slate-300 shadow-sm">
         <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-slate-200">
           <h2 className="text-xs font-black uppercase tracking-wider text-slate-950">
-            Relevés des 5 Stations Météo-France les Plus Proches (Par Distance)
+            Relevés de Toutes les Stations Météo-France dans un Rayon de 30 km ({stationsWithData.length} stations)
           </h2>
           <span className="text-xs font-black text-sky-950 bg-sky-100 px-2.5 py-0.5 rounded border border-sky-300">
             Normes OMM 3 secondes
@@ -511,7 +509,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         <div className="bg-white rounded-2xl p-5 border-2 border-slate-300 shadow-sm">
           <h2 className="text-xs font-black uppercase tracking-wider text-slate-950 mb-3 flex items-center gap-2">
             <MapPin className="w-4 h-4 text-sky-600" />
-            Localisation & 5 Stations les Plus Proches
+            Localisation & Stations dans un Rayon de 30 km
           </h2>
           <SinistreMap sinistre={sinistre} stations={stationsWithData} />
         </div>
@@ -540,13 +538,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
-      {/* HISTORIQUE JOURNALIER AVEC SÉLECTEUR (5 STATIONS) */}
+      {/* HISTORIQUE JOURNALIER AVEC SÉLECTEUR (RAYON 30 KM) */}
       <div className="bg-white rounded-2xl p-6 border-2 border-slate-300 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div>
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-950 flex items-center gap-2">
               <Calendar className="w-4 h-4 text-sky-600" />
-              Observations Journalières Détaillées (5 Stations)
+              Observations Journalières Détaillées (Rayon 30 km)
             </h2>
           </div>
 
@@ -561,7 +559,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
                     : 'text-slate-700 hover:text-slate-950 hover:bg-white'
                 }`}
               >
-                {st.name}
+                {st.name} ({st.distance} km)
               </button>
             ))}
           </div>
@@ -618,7 +616,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           </div>
         )}
 
-        {/* BLOC RECORDS HISTORIQUES RÉACTIF & HAUTE VISIBILITÉ */}
+        {/* BLOC RECORDS HISTORIQUES */}
         {(() => {
           const tabRec = stationRecordsService.getRecords(activeTabStation.id, activeTabStation.name, sinistre.codePostal?.slice(0, 2) || '59');
           return (
@@ -666,7 +664,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         })()}
       </div>
 
-      {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE - 5 STATIONS) */}
+      {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE - RAYON 30 KM) */}
       <CertificatIntemperies1Page
         dossier={dossier}
         stationsData={stationsWithData}

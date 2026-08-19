@@ -19,10 +19,10 @@ export const stationSelectorService = {
   },
 
   /**
-   * Sélection stricte des 5 stations Météo-France les plus proches géographiquement
-   * (Tri par distance réelle pure sans biais d'extrêmes)
+   * Sélection de TOUTES les stations Météo-France situées dans un rayon de 30 km
+   * (Tri strict par distance physique croissante)
    */
-  findBestStations(targetLat, targetLon, targetAlt = 0, claimType = '', count = 5) {
+  findBestStations(targetLat, targetLon, targetAlt = 0, claimType = '', maxRadius = 30) {
     if (!targetLat || !targetLon) return [];
 
     const all = this.getAllStations();
@@ -34,23 +34,45 @@ export const stationSelectorService = {
       const isStandardAnemo = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('004') || st.typePoste === 1;
       const dist = haversineDistance(targetLat, targetLon, st.lat, st.lon);
 
-      qualifiedStations.push({
-        ...st,
-        distance: Math.round(dist * 10) / 10,
-        altDiff: Math.abs((st.alt || 0) - targetAlt),
-        isAnemo: isStandardAnemo,
-        hasWind: isStandardAnemo,
-        hasRain: true,
-        hasTemp: true
-      });
+      // Rayon strict de 30 km
+      if (dist <= maxRadius) {
+        qualifiedStations.push({
+          ...st,
+          distance: Math.round(dist * 10) / 10,
+          altDiff: Math.abs((st.alt || 0) - targetAlt),
+          isAnemo: isStandardAnemo,
+          hasWind: isStandardAnemo,
+          hasRain: true,
+          hasTemp: true
+        });
+      }
     }
 
     // Tri STRICT par distance physique croissante (les plus proches en premier)
     qualifiedStations.sort((a, b) => a.distance - b.distance);
 
-    const topStations = qualifiedStations.slice(0, count);
+    // Garantie de complétude : si moins de 3 stations dans 30 km, étendre pour avoir au minimum 3-5 stations
+    if (qualifiedStations.length < 3) {
+      const fallbackList = [];
+      for (const st of all) {
+        if (!st.lat || !st.lon || (st.lat === 48.85 && st.lon === 2.35 && st.dept !== '75')) continue;
+        const isStandardAnemo = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('004') || st.typePoste === 1;
+        const dist = haversineDistance(targetLat, targetLon, st.lat, st.lon);
+        fallbackList.push({
+          ...st,
+          distance: Math.round(dist * 10) / 10,
+          altDiff: Math.abs((st.alt || 0) - targetAlt),
+          isAnemo: isStandardAnemo,
+          hasWind: isStandardAnemo,
+          hasRain: true,
+          hasTemp: true
+        });
+      }
+      fallbackList.sort((a, b) => a.distance - b.distance);
+      return fallbackList.slice(0, 5).map((s, idx) => ({ ...s, isTop: true, rank: idx + 1 }));
+    }
 
-    return topStations.map((s, idx) => ({
+    return qualifiedStations.map((s, idx) => ({
       ...s,
       isTop: true,
       rank: idx + 1
