@@ -3,22 +3,23 @@ import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Marqueurs affinés et élégants
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [26, 42],
-  iconAnchor: [13, 42],
-  popupAnchor: [1, -36],
-  shadowSize: [42, 42]
+  iconSize: [20, 32],
+  iconAnchor: [10, 32],
+  popupAnchor: [1, -28],
+  shadowSize: [32, 32]
 });
 
 const blueIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [22, 36],
-  iconAnchor: [11, 36],
-  popupAnchor: [1, -32],
-  shadowSize: [36, 36]
+  iconSize: [18, 28],
+  iconAnchor: [9, 28],
+  popupAnchor: [1, -25],
+  shadowSize: [28, 28]
 });
 
 function AutoFitBounds({ points }) {
@@ -26,7 +27,7 @@ function AutoFitBounds({ points }) {
   useEffect(() => {
     if (points && points.length > 0) {
       const bounds = L.latLngBounds(points);
-      map.fitBounds(bounds, { padding: [35, 35], maxZoom: 12 });
+      map.fitBounds(bounds, { padding: [45, 45], maxZoom: 12 });
       setTimeout(() => map.invalidateSize(), 200);
     }
   }, [map, points]);
@@ -36,7 +37,7 @@ function AutoFitBounds({ points }) {
 export default function SinistreMap({ sinistre, stations = [] }) {
   if (!sinistre || typeof sinistre.lat !== 'number' || typeof sinistre.lon !== 'number') {
     return (
-      <div className="h-64 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-500 text-xs">
+      <div className="h-72 rounded-xl bg-slate-100 flex items-center justify-center border border-slate-300 text-slate-500 text-xs">
         Localisation du sinistre en attente de coordonnées géographiques
       </div>
     );
@@ -54,10 +55,10 @@ export default function SinistreMap({ sinistre, stations = [] }) {
 
   return (
     <div className="w-full space-y-2">
-      {/* Conteneur Carte au ratio strict 16:9 / 3:2 */}
+      {/* Conteneur Carte au ratio 3:2 avec hauteur valorisée (+25%) */}
       <div 
         id="sinistre-map-leaflet-container" 
-        className="w-full aspect-[16/9] max-h-[380px] rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-slate-100"
+        className="w-full aspect-[3/2] min-h-[300px] max-h-[350px] rounded-xl overflow-hidden border border-slate-300 shadow-sm relative bg-slate-100"
       >
         <MapContainer
           key={mapKey}
@@ -74,10 +75,10 @@ export default function SinistreMap({ sinistre, stations = [] }) {
 
           <AutoFitBounds points={allPoints} />
 
-          {/* 🔴 Marqueur Sinistre avec label sobre */}
+          {/* 🔴 Marqueur Sinistre */}
           <Marker position={center} icon={redIcon}>
-            <Tooltip permanent direction="top" offset={[0, -38]} opacity={0.95}>
-              <span className="font-extrabold text-[11px] text-rose-800 bg-white px-2 py-0.5 rounded shadow border border-rose-400">
+            <Tooltip permanent direction="top" offset={[0, -30]} opacity={0.95}>
+              <span className="font-extrabold text-[10px] text-rose-800 bg-white px-2 py-0.5 rounded shadow border border-rose-300">
                 🔴 LIEU DU SINISTRE
               </span>
             </Tooltip>
@@ -89,8 +90,8 @@ export default function SinistreMap({ sinistre, stations = [] }) {
             return (
               <React.Fragment key={st.id || idx}>
                 <Marker position={[st.lat, st.lon]} icon={blueIcon}>
-                  <Tooltip permanent direction="top" offset={[0, -32]} opacity={0.95}>
-                    <span className="font-bold text-[10px] text-sky-950 bg-white px-2 py-0.5 rounded shadow border border-sky-400">
+                  <Tooltip permanent direction="top" offset={[0, -25]} opacity={0.95}>
+                    <span className="font-bold text-[9pt] text-sky-950 bg-white px-1.5 py-0.5 rounded shadow border border-sky-300">
                       🔵 {idx + 1} - {st.name} ({st.distance} km)
                     </span>
                   </Tooltip>
@@ -111,14 +112,14 @@ export default function SinistreMap({ sinistre, stations = [] }) {
         </MapContainer>
       </div>
 
-      {/* Légende extérieure sobre sous la carte */}
-      <div className="flex flex-wrap items-center justify-between px-2 text-xs text-slate-700 font-medium">
+      {/* Légende extérieure discrète sous la carte */}
+      <div className="flex flex-wrap items-center justify-between px-1 text-xs text-slate-700 font-medium">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block" />
           <strong>Lieu du sinistre :</strong> {sinistre.adresseSinistre || sinistre.commune}
         </span>
         <span className="text-slate-600 font-mono text-[11px]">
-          Stations de référence : {activeStations.map((s, i) => `${i+1}. ${s.name} (${s.distance} km)`).join(' • ')}
+          Stations : {activeStations.map((s, i) => `${i+1}. ${s.name} (${s.distance} km)`).join(' • ')}
         </span>
       </div>
     </div>

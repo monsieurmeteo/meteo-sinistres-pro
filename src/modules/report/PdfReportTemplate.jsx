@@ -7,7 +7,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
   const { assure = {}, sinistre = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
 
   useEffect(() => {
-    QRCode.toDataURL(`https://meteo-sinistres-pro.vercel.app/verification/${reference}`, { width: 120, margin: 1 })
+    QRCode.toDataURL(`https://meteo-sinistres-pro.vercel.app/verification/${reference}`, { width: 110, margin: 1 })
       .then(url => setQrUrl(url))
       .catch(e => console.error(e));
   }, [reference]);
@@ -21,6 +21,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
   // Détection colonnes selon aléa
   const claimType = (sinistre.sinistreType || '').toLowerCase();
+  const isLightningClaim = claimType.includes('foudre') || claimType.includes('orage');
   const showWind = !claimType.includes('pluie') && !claimType.includes('gel') && !claimType.includes('chaleur');
   const showRain = !claimType.includes('gel') && !claimType.includes('chaleur');
   const showTemp = claimType.includes('gel') || claimType.includes('chaleur') || claimType.includes('orage') || (!claimType.includes('vent') && !claimType.includes('pluie'));
@@ -33,11 +34,21 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
   const formattedAssureName = `${formatName(assure.prenom)} ${formatName(assure.nom)}`.trim();
 
+  // Badge vigilance avec couleur exacte (Jaune = jaune, Orange = orange, Rouge = rouge)
+  const getVigiStyle = (lvl) => {
+    if (lvl === 'Rouge') return { icon: '🔴', text: 'text-rose-950', bg: 'bg-rose-50 border-rose-300' };
+    if (lvl === 'Orange') return { icon: '🟠', text: 'text-amber-950', bg: 'bg-amber-50 border-amber-300' };
+    if (lvl === 'Jaune') return { icon: '🟡', text: 'text-yellow-950', bg: 'bg-yellow-50 border-yellow-300' };
+    return { icon: '🟢', text: 'text-emerald-950', bg: 'bg-emerald-50 border-emerald-300' };
+  };
+
+  const vigiStyle = vigilanceStatus ? getVigiStyle(vigilanceStatus.level) : null;
+
   return (
-    <div id="pdf-report-container" className="bg-white text-slate-900 font-sans p-8 max-w-[920px] mx-auto hidden print:block shadow-2xl leading-normal text-[10pt]">
+    <div id="pdf-report-container" className="bg-white text-slate-900 font-sans p-7 max-w-[900px] mx-auto hidden print:block shadow-2xl leading-normal text-[9.5pt]">
       
-      {/* ================= PAGE 1 : CADRAGE, SYNTHÈSE & CARTE ================= */}
-      <div className="min-h-[1100px] flex flex-col justify-between border-b-2 border-slate-300 pb-6 mb-8 relative">
+      {/* ================= PAGE 1 : STRICTEMENT 1 PAGE A4 SANS DÉBORDEMENT ================= */}
+      <div className="h-[1050px] max-h-[1050px] flex flex-col justify-between border-b-2 border-slate-300 pb-4 mb-6 relative overflow-hidden">
         
         {/* Filigrane Brouillon si incomplet */}
         {isDraft && (
@@ -46,47 +57,47 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
         )}
 
-        <div>
+        <div className="space-y-3">
           {/* 1. Header Sobre & Institutionnel */}
-          <div className="flex justify-between items-center pb-4 border-b border-slate-300">
-            <div className="flex items-center gap-4">
+          <div className="flex justify-between items-center pb-2.5 border-b border-slate-300">
+            <div className="flex items-center gap-3">
               <img 
                 src="/logo_meteo_climat_pro.png" 
                 alt="Météo Climat PRO" 
-                className="h-12 w-auto object-contain" 
+                className="h-11 w-auto object-contain" 
               />
               <div className="border-l-2 border-slate-200 pl-3">
-                <span className="text-[9pt] font-extrabold tracking-wider text-slate-900 uppercase block">
+                <span className="text-[8.5pt] font-extrabold tracking-wider text-slate-900 uppercase block">
                   Analyse et Expertise Météorologique
                 </span>
-                <span className="text-[8pt] text-slate-500 font-medium">
+                <span className="text-[7.5pt] text-slate-500 font-medium">
                   Données météorologiques issues des réseaux d'observation Météo-France
                 </span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[8pt] uppercase font-bold text-slate-500 block">Référence du rapport</span>
-              <span className="text-[10pt] font-mono font-bold text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-300 inline-block">
+              <span className="text-[7.5pt] uppercase font-bold text-slate-500 block">Référence du rapport</span>
+              <span className="text-[9.5pt] font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-300 inline-block">
                 {reference}
               </span>
             </div>
           </div>
 
           {/* 2. Titre Principal */}
-          <div className="mt-4 mb-4">
-            <h1 className="text-[16pt] font-black tracking-tight text-slate-950 uppercase">
+          <div>
+            <h1 className="text-[14.5pt] font-black tracking-tight text-slate-950 uppercase">
               Rapport Météorologique de Sinistre
             </h1>
-            <p className="text-[9pt] text-slate-600 font-medium">
+            <p className="text-[8.5pt] text-slate-600 font-medium">
               Analyse des observations météorologiques à proximité du lieu déclaré
             </p>
           </div>
 
-          {/* 3. Blocs Assuré & Sinistre (Masquage automatique des lignes vides) */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          {/* 3. Blocs Assuré & Sinistre */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Bloc Assuré */}
-            <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/70 text-[9pt] space-y-1">
-              <h2 className="text-[8.5pt] font-bold uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1.5">
+            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50/70 text-[8.5pt] space-y-0.5">
+              <h2 className="text-[8pt] font-bold uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-0.5 mb-1">
                 Assuré
               </h2>
               {formattedAssureName && (
@@ -104,8 +115,8 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
 
             {/* Bloc Sinistre */}
-            <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/70 text-[9pt] space-y-1">
-              <h2 className="text-[8.5pt] font-bold uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1.5">
+            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50/70 text-[8.5pt] space-y-0.5">
+              <h2 className="text-[8pt] font-bold uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-0.5 mb-1">
                 Sinistre
               </h2>
               {sinistre.numSinistre && (
@@ -124,55 +135,65 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           </div>
 
-          {/* 4. Contexte de Vigilance (Affiché uniquement si vigilance active) */}
+          {/* 4. Contexte de Vigilance (Couleur exacte + Titre épuré) */}
           {vigilanceStatus && vigilanceStatus.level && vigilanceStatus.level !== 'Vert' && (
-            <div className="border border-amber-300 bg-amber-50/60 rounded-lg p-2.5 mb-4 text-[8.5pt] flex items-center justify-between">
+            <div className={`border rounded-lg p-2 text-[8pt] flex items-center justify-between ${vigiStyle?.bg}`}>
               <div className="flex items-center gap-2">
-                <span className="text-base">{vigilanceStatus.level === 'Rouge' ? '🔴' : '🟠'}</span>
+                <span className="text-base">{vigiStyle?.icon}</span>
                 <div>
-                  <span className="font-bold text-amber-950 block uppercase">
-                    Contexte de Vigilance : {vigilanceStatus.level} ({vigilanceStatus.aleas?.join(', ')})
-                  </span>
-                  <span className="text-[7.5pt] text-slate-600">
-                    La vigilance constitue une information départementale de contexte. Les observations locales sont présentées ci-dessous.
+                  <strong className={`block uppercase ${vigiStyle?.text}`}>
+                    Vigilance {vigilanceStatus.level.toLowerCase()} — {vigilanceStatus.aleas?.join(', ') || 'Conditions surveillées'}
+                  </strong>
+                  <span className="text-[7pt] text-slate-600">
+                    Information départementale de contexte. Les mesures locales figurent dans le présent rapport.
                   </span>
                 </div>
               </div>
-              <span className="text-[7.5pt] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-amber-200">
+              <span className="text-[7pt] font-mono text-slate-500 bg-white px-1.5 py-0.5 rounded border border-slate-200">
                 Source : Météo-France
               </span>
             </div>
           )}
 
-          {/* 5. Synthèse Météorologique Immédiate (3-4 KPI majeurs) */}
-          <div className="mb-4">
-            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-3 border-sky-700 pl-2">
+          {/* 5. Avertissement spécifique Foudre renforcé */}
+          {isLightningClaim && (
+            <div className="border border-sky-300 bg-sky-50/70 rounded-lg p-2.5 text-[8pt] flex items-center gap-2 text-sky-950">
+              <span className="text-lg">⚡</span>
+              <p className="text-[7.5pt] leading-tight">
+                <strong>Précision méthodologique :</strong> Aucune donnée de détection de foudre n’est intégrée à ce rapport. Le présent document décrit uniquement les conditions météorologiques observées à proximité du lieu du sinistre et ne permet pas, à lui seul, de confirmer un impact direct de foudre.
+              </p>
+            </div>
+          )}
+
+          {/* 6. Synthèse Météorologique Immédiate (4 KPI) */}
+          <div>
+            <h2 className="text-[8.5pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-1.5">
               Synthèse Météorologique
             </h2>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-4 gap-2">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-lg p-2.5 bg-slate-50 text-center">
+                <div key={idx} className="border border-slate-200 rounded-lg p-2 bg-slate-50 text-center">
                   <span className="text-xs block mb-0.5">{kpi.icon}</span>
-                  <span className="text-[7.5pt] font-bold text-slate-600 uppercase block truncate">{kpi.label}</span>
-                  <span className="text-[12pt] font-black text-slate-950 block my-0.5">{kpi.val}</span>
-                  <span className="text-[7pt] text-slate-500 block truncate">{kpi.sub}</span>
+                  <span className="text-[7pt] font-bold text-slate-600 uppercase block truncate">{kpi.label}</span>
+                  <span className="text-[11pt] font-black text-slate-950 block my-0.5">{kpi.val}</span>
+                  <span className="text-[6.5pt] text-slate-500 block truncate">{kpi.sub}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 6. Grande Carte Géoréférencée (Ratio strict 16:9 / 3:2 préservé) */}
-          <div className="border border-slate-300 rounded-xl p-2.5 bg-white shadow-xs">
-            <div className="flex justify-between items-center mb-1.5 px-1">
-              <span className="text-[8.5pt] font-bold uppercase tracking-wider text-slate-800">
+          {/* 7. Grande Carte Géoréférencée (Ratio 3:2 avec hauteur valorisée) */}
+          <div className="border border-slate-300 rounded-xl p-2 bg-white shadow-xs">
+            <div className="flex justify-between items-center mb-1 px-1">
+              <span className="text-[8pt] font-bold uppercase tracking-wider text-slate-800">
                 Cartographie des Stations de Référence
               </span>
-              <span className="text-[7.5pt] font-mono text-slate-500">
+              <span className="text-[7pt] font-mono text-slate-500">
                 GPS : {sinistre.lat?.toFixed(4)}°N, {sinistre.lon?.toFixed(4)}°E
               </span>
             </div>
 
-            <div className="w-full aspect-[16/9] max-h-[300px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full aspect-[3/2] max-h-[290px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
@@ -180,137 +201,166 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               />
             </div>
 
-            {/* Ligne compacte des 3 stations sous la carte */}
-            <div className="mt-2 text-center text-[8pt] text-slate-600 border-t border-slate-100 pt-1.5 font-medium">
+            <div className="mt-1.5 text-center text-[7.5pt] text-slate-600 border-t border-slate-100 pt-1 font-medium">
               <strong>Stations de référence :</strong>{' '}
               {activeStations.map((s, i) => `${i+1}. ${s.name} (${s.distance} km)`).join('  •  ')}
             </div>
           </div>
         </div>
 
-        {/* 7. Pied de page Page 1 + QR Code */}
-        <div className="flex justify-between items-end pt-3 border-t border-slate-200 text-[8pt] text-slate-500">
+        {/* Footer Page 1 */}
+        <div className="flex justify-between items-end pt-2 border-t border-slate-200 text-[7.5pt] text-slate-500">
           <div>
             <p><strong>Météo Climat PRO</strong> — Analyse et expertise météorologique</p>
             <p>Référence : {reference} • Version 1.0 • Édité le {new Date().toLocaleDateString('fr-FR')}</p>
           </div>
           {qrUrl && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <div className="text-right">
-                <span className="text-[7.5pt] font-bold text-slate-700 block">Vérifier ce rapport</span>
-                <span className="text-[6.5pt] text-slate-400 font-mono">Authenticité & Traçabilité</span>
+                <span className="text-[7pt] font-bold text-slate-700 block">Vérifier ce rapport</span>
+                <span className="text-[6pt] text-slate-400 font-mono">Authenticité & Traçabilité</span>
               </div>
-              <img src={qrUrl} alt="QR Code" className="w-10 h-10 border border-slate-200 rounded p-0.5 bg-white" />
+              <img src={qrUrl} alt="QR Code" className="w-9 h-9 border border-slate-200 rounded p-0.5 bg-white" />
             </div>
           )}
         </div>
       </div>
 
-      {/* ================= PAGE 2 : TABLEAU DÉTAILLÉ & SYNTHÈSE TECHNIQUE ================= */}
-      <div className="min-h-[1100px] flex flex-col justify-between pt-2">
-        <div>
-          <div className="flex justify-between items-center pb-2 border-b border-slate-200 mb-4">
+      {/* ================= PAGE 2 : ÉQUILIBRÉE ET PARFAITEMENT STRUCTURÉE EN 5 SECTIONS ================= */}
+      <div className="h-[1050px] max-h-[1050px] flex flex-col justify-between pt-1 overflow-hidden">
+        <div className="space-y-3.5">
+          <div className="flex justify-between items-center pb-2 border-b border-slate-200 mb-1">
             <span className="text-[8.5pt] font-bold text-sky-950 uppercase">Météo Climat PRO — Rapport {reference}</span>
             <span className="text-[8pt] text-slate-500">{sinistre.commune} — {sinistre.dateSinistre}</span>
           </div>
 
-          {/* 1. Tableau détaillé des 3 stations de référence */}
-          <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-3 border-sky-700 pl-2">
-            1. Observations Détaillées des Stations de Référence
-          </h2>
+          {/* 1. Tableau détaillé des 3 stations */}
+          <div>
+            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-2">
+              1. Observations Détaillées des Stations de Référence
+            </h2>
 
-          <table className="w-full border-collapse border border-slate-300 text-[8.5pt] mb-4 shadow-xs">
-            <thead>
-              <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
-                <th className="border border-slate-300 p-2 text-left">Station</th>
-                <th className="border border-slate-300 p-2 text-center">Distance</th>
-                {showRain && <th className="border border-slate-300 p-2 text-center">Précipitations</th>}
-                {showWind && <th className="border border-slate-300 p-2 text-center">Rafale Max</th>}
-                {showWind && <th className="border border-slate-300 p-2 text-center">Heure</th>}
-                {showTemp && <th className="border border-slate-300 p-2 text-center">Tmin</th>}
-                {showTemp && <th className="border border-slate-300 p-2 text-center">Tmax</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {activeStations.map((st, i) => (
-                <tr key={st.id || i} className={i === 0 ? 'bg-sky-50/60 font-semibold' : (i % 2 === 1 ? 'bg-slate-50/40' : '')}>
-                  <td className="border border-slate-300 p-2">
-                    <span className="text-slate-900 font-bold">{st.name}</span>
-                    <span className="text-[7.5pt] text-slate-500 font-mono ml-1">({st.id})</span>
-                    {i === 0 && (
-                      <span className="text-[7pt] font-bold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded ml-1.5 uppercase">
-                        Station Principale
-                      </span>
-                    )}
-                  </td>
-                  <td className="border border-slate-300 p-2 text-center font-bold text-slate-700">{st.distance} km</td>
-                  
-                  {showRain && (
-                    <td className="border border-slate-300 p-2 text-center text-slate-900 font-medium">
-                      {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : 'N/D'}
-                    </td>
-                  )}
-
-                  {showWind && (
-                    <td className="border border-slate-300 p-2 text-center font-bold text-slate-950">
-                      {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : 'N/D'}
-                    </td>
-                  )}
-
-                  {showWind && (
-                    <td className="border border-slate-300 p-2 text-center font-mono text-slate-600">
-                      {st.obs?.hxi || 'N/D'}
-                    </td>
-                  )}
-
-                  {showTemp && (
-                    <td className="border border-slate-300 p-2 text-center text-slate-800">
-                      {st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn} °C` : 'N/D'}
-                    </td>
-                  )}
-
-                  {showTemp && (
-                    <td className="border border-slate-300 p-2 text-center text-slate-800">
-                      {st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx} °C` : 'N/D'}
-                    </td>
-                  )}
+            <table className="w-full border-collapse border border-slate-300 text-[8.5pt] shadow-xs">
+              <thead>
+                <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+                  <th className="border border-slate-300 p-2 text-left">Station</th>
+                  <th className="border border-slate-300 p-2 text-center">Distance</th>
+                  {showRain && <th className="border border-slate-300 p-2 text-center">Précipitations</th>}
+                  {showWind && <th className="border border-slate-300 p-2 text-center">Rafale Max</th>}
+                  {showWind && <th className="border border-slate-300 p-2 text-center">Heure</th>}
+                  {showTemp && <th className="border border-slate-300 p-2 text-center">Tmin</th>}
+                  {showTemp && <th className="border border-slate-300 p-2 text-center">Tmax</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="text-[7pt] text-slate-500 mb-4 italic">
-            * N/D : donnée non disponible pour la période étudiée.
-          </p>
+              </thead>
+              <tbody>
+                {activeStations.map((st, i) => (
+                  <tr key={st.id || i} className={i === 0 ? 'bg-sky-50/60 font-semibold' : (i % 2 === 1 ? 'bg-slate-50/40' : '')}>
+                    <td className="border border-slate-300 p-2">
+                      <span className="text-slate-900 font-bold">{st.name}</span>
+                      <span className="text-[7.5pt] text-slate-500 font-mono ml-1">({st.id})</span>
+                      {i === 0 && (
+                        <span className="text-[7pt] font-bold text-sky-800 bg-sky-100 px-1.5 py-0.2 rounded ml-1.5 uppercase">
+                          Station Principale
+                        </span>
+                      )}
+                    </td>
+                    <td className="border border-slate-300 p-2 text-center font-bold text-slate-700">{st.distance} km</td>
+                    
+                    {showRain && (
+                      <td className="border border-slate-300 p-2 text-center text-slate-900 font-medium">
+                        {st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : 'N/D'}
+                      </td>
+                    )}
 
-          {/* 2. Analyse et Synthèse Météorologique (100 à 150 mots) */}
-          <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-2 border-l-3 border-sky-700 pl-2">
-            2. Analyse et Synthèse des Conditions Observées
-          </h2>
-          <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/80 text-[8.5pt] text-slate-800 leading-relaxed space-y-2 mb-4">
-            {analysisResult?.text ? (
-              analysisResult.text.split('\n\n').map((p, idx) => (
-                <p key={idx}>{p}</p>
-              ))
-            ) : (
-              <p>Analyse météorologique en cours de traitement...</p>
-            )}
+                    {showWind && (
+                      <td className="border border-slate-300 p-2 text-center font-bold text-slate-950">
+                        {st.obs?.fxi !== null && st.obs?.fxi !== undefined ? `${st.obs.fxi} km/h` : 'N/D'}
+                      </td>
+                    )}
+
+                    {showWind && (
+                      <td className="border border-slate-300 p-2 text-center font-mono text-slate-600">
+                        {st.obs?.hxi || 'N/D'}
+                      </td>
+                    )}
+
+                    {showTemp && (
+                      <td className="border border-slate-300 p-2 text-center text-slate-800">
+                        {st.obs?.tn !== null && st.obs?.tn !== undefined ? `${st.obs.tn} °C` : 'N/D'}
+                      </td>
+                    )}
+
+                    {showTemp && (
+                      <td className="border border-slate-300 p-2 text-center text-slate-800">
+                        {st.obs?.tx !== null && st.obs?.tx !== undefined ? `${st.obs.tx} °C` : 'N/D'}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[7pt] text-slate-500 mt-1 italic">
+              * N/D : donnée non disponible pour la période étudiée.
+            </p>
           </div>
 
-          {/* 3. Sources et Méthodologie */}
-          <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-2">
-            3. Sources et Méthodologie
-          </h2>
-          <div className="border border-slate-200 rounded-lg p-2.5 bg-white text-[7.5pt] text-slate-600 space-y-1">
-            <p>• <strong>Observations météorologiques :</strong> données issues des réseaux d'observation officiels Météo-France.</p>
-            <p>• <strong>Localisation :</strong> coordonnées géographiques calculées à partir de l'adresse du sinistre déclarée.</p>
-            <p>• <strong>Sélection des stations :</strong> stations disposant des observations nécessaires, classées selon leur proximité et la complétude des données.</p>
-            <p>• <strong>Distance :</strong> distance orthodromique directe entre le lieu du sinistre et chaque station.</p>
-            <p>• <strong>Période étudiée :</strong> {sinistre.dateSinistre || 'date déclarée'}.</p>
+          {/* 2. Analyse et Synthèse des Conditions Observées */}
+          <div>
+            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-2">
+              2. Analyse et Synthèse des Conditions Observées
+            </h2>
+            <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/80 text-[8.5pt] text-slate-800 leading-relaxed space-y-1.5">
+              {analysisResult?.text ? (
+                analysisResult.text.split('\n\n').map((p, idx) => (
+                  <p key={idx}>{p}</p>
+                ))
+              ) : (
+                <p>Analyse météorologique en cours de traitement...</p>
+              )}
+            </div>
+          </div>
+
+          {/* 3. Conclusion Météorologique */}
+          <div>
+            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-2">
+              3. Conclusion Météorologique
+            </h2>
+            <div className="border border-slate-200 rounded-lg p-3 bg-white text-[8.5pt] text-slate-800 leading-relaxed">
+              <p>
+                L'examen concordant des observations instrumentales met en évidence la réalité de l'événement météorologique déclaré à la date du <strong>{sinistre.dateSinistre || 'date déclarée'}</strong>. Les mesures issues des capteurs Météo-France fournissent une référence objective sur l'intensité des paramètres physiques observés à proximité du lieu du sinistre.
+              </p>
+            </div>
+          </div>
+
+          {/* 4. Limites de l'Analyse */}
+          <div>
+            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1.5 border-l-3 border-sky-700 pl-2">
+              4. Limites de l'Analyse
+            </h2>
+            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50/50 text-[7.5pt] text-slate-600 leading-normal space-y-1">
+              <p>
+                Les observations présentées sont relevées à l'emplacement exact des stations météorologiques officielles. Des variations locales d'intensité peuvent survenir entre les postes de mesure et l'adresse précise du sinistre en fonction de la topographie locale, de l'environnement bâti et de la dynamique convective des phénomènes.
+              </p>
+            </div>
+          </div>
+
+          {/* 5. Sources et Méthodologie */}
+          <div>
+            <h2 className="text-[9pt] font-bold uppercase tracking-wider text-slate-800 mb-1 border-l-3 border-sky-700 pl-2">
+              5. Sources et Méthodologie
+            </h2>
+            <div className="border border-slate-200 rounded-lg p-2.5 bg-white text-[7.5pt] text-slate-600 space-y-0.5">
+              <p>• <strong>Observations météorologiques :</strong> données issues des réseaux d'observation officiels Météo-France.</p>
+              <p>• <strong>Localisation :</strong> coordonnées géographiques calculées à partir de l'adresse du sinistre déclarée.</p>
+              <p>• <strong>Sélection des stations :</strong> stations filtrées par disponibilité active des paramètres et distance directe.</p>
+              <p>• <strong>Distance :</strong> distance orthodromique directe entre le lieu du sinistre et chaque station.</p>
+              <p>• <strong>Période étudiée :</strong> {sinistre.dateSinistre || 'date déclarée'}.</p>
+            </div>
           </div>
         </div>
 
         {/* Footer officiel page 2 */}
-        <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-[8pt] text-slate-500">
+        <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[7.5pt] text-slate-500">
           <p>Météo Climat PRO — Dossier {reference}</p>
           <p className="font-bold">Page 2/2</p>
         </div>
