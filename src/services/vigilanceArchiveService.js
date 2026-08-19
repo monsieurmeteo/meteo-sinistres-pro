@@ -38,88 +38,21 @@ export const vigilanceArchiveService = {
       return this.formatVigilanceResult(formattedDept, cleanDate, cached.level, cached.phenos, `Archives Météo-France (Épisode du ${cleanDate})`);
     }
 
-    // 2. Interrogation directe de l'API de Vigilance Météo-France (Live & Historique)
+    // 2. Proxy serverless Vercel — contourne le CORS Encelade
     try {
-      const tokRes = await fetch('https://vigilance.encelade.cloud/historique/api/token', {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (tokRes.ok) {
-        const token = (await tokRes.text()).trim();
-        const headers = {
-          'X-VIGI-TOKEN': token,
-          'Referer': 'https://vigilance.encelade.cloud/historique',
-          'X-Requested-With': 'XMLHttpRequest'
-        };
-
-        const echRes = await fetch('https://vigilance.encelade.cloud/historique/api/get_echeances', { headers });
-        if (echRes.ok) {
-          const echeances = await echRes.json();
-          if (Array.isArray(echeances) && echeances.length > 0) {
-            // Bulletins du jour exact uniquement
-            const matchingBulletins = echeances.filter(b => b.e && b.e.startsWith(cleanDate));
-            if (matchingBulletins.length === 0) {
-              // Aucun bulletin archivé pour cette date
-              return this.formatVigilanceResult(formattedDept, cleanDate, 'Vert', [], 'Archives Météo-France (Aucun bulletin sur cette date)');
-            }
-
-            // Scan de TOUS les bulletins du jour — on retient le NIVEAU LE PLUS ÉLEVÉ
-            let globalMaxLevel = 1;
-            let globalPhenos = [];
-            let bestBulletinId = matchingBulletins[0].id;
-            let bestBulletinDate = matchingBulletins[0].e;
-
-            const delay = ms => new Promise(r => setTimeout(r, ms));
-
-            for (const bulletin of matchingBulletins) {
-              let detRes = null;
-              // Retry sur 429 (rate-limit Encelade)
-              for (let attempt = 0; attempt < 3; attempt++) {
-                detRes = await fetch(
-                  `https://vigilance.encelade.cloud/historique/api/get_vigilance/${bulletin.id}`,
-                  { headers }
-                );
-                if (detRes.status !== 429) break;
-                await delay(800 * (attempt + 1));
-              }
-
-              if (!detRes || !detRes.ok) continue;
-
-              let det;
-              try { det = await detRes.json(); } catch { continue; }
-
-              const dptRows = (det.rows || []).filter(
-                r => String(r.dpt) === formattedDept || String(r.dpt).padStart(2, '0') === formattedDept
-              );
-
-              for (const row of dptRows) {
-                const lvl = row.level || 1;
-                if (lvl > globalMaxLevel) {
-                  globalMaxLevel = lvl;
-                  bestBulletinId = bulletin.id;
-                  bestBulletinDate = bulletin.e;
-                }
-                if (row.pheno_id && PHENO_NAMES[row.pheno_id]) {
-                  const pName = PHENO_NAMES[row.pheno_id];
-                  if (!globalPhenos.includes(pName)) globalPhenos.push(pName);
-                }
-              }
-            }
-
-            const levelNames = { 1: 'Vert', 2: 'Jaune', 3: 'Orange', 4: 'Rouge' };
-            const resolvedLevel = levelNames[globalMaxLevel] || 'Vert';
-
-            return this.formatVigilanceResult(
-              formattedDept,
-              cleanDate,
-              resolvedLevel,
-              globalPhenos,
-              `Météo-France (Bulletin #${bestBulletinId} du ${bestBulletinDate?.slice(0, 16)})`
-            );
-          }
-        }
+      const res = await fetch(`/api/vigilance?dept=${formattedDept}&date=${cleanDate}`);
+      if (res.ok) {
+        const data = await res.json();
+        return this.formatVigilanceResult(
+          formattedDept,
+          cleanDate,
+          data.level || 'Vert',
+          data.phenos || [],
+          data.source || 'Archives Météo-France'
+        );
       }
     } catch (e) {
-      console.warn("Erreur direct vigilance fetch:", e);
+      console.warn('Vigilance proxy error:', e);
     }
 
     return this.formatVigilanceResult(formattedDept, cleanDate, 'Vert', [], "Archives Officielles Météo-France");
