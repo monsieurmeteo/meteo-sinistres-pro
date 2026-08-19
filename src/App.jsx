@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/common/Navbar';
 import Sidebar from './components/common/Sidebar';
+import LoginScreen from './components/common/LoginScreen';
 import MainDashboard from './modules/dashboard/MainDashboard';
 import DossierList from './modules/dossier/DossierList';
 import NewDossierWizard from './modules/dossier/NewDossierWizard';
@@ -9,14 +10,43 @@ import MonthlyClimateTable from './modules/climatology/MonthlyClimateTable';
 import { dossierStorageService } from './services/dossierStorageService';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState('');
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dossiers, setDossiers] = useState([]);
   const [activeDossier, setActiveDossier] = useState(null);
 
+  // Vérifier la session existante
   useEffect(() => {
+    const localAuth = localStorage.getItem('mcp_auth_session') === 'true';
+    const sessionAuth = sessionStorage.getItem('mcp_auth_session') === 'true';
+    const user = localStorage.getItem('mcp_auth_user') || sessionStorage.getItem('mcp_auth_user');
+
+    if (localAuth || sessionAuth) {
+      setIsAuthenticated(true);
+      setCurrentUser(user || 'assur59');
+    }
+
     const loaded = dossierStorageService.getAll();
     setDossiers(loaded);
   }, []);
+
+  const handleLoginSuccess = (user) => {
+    setIsAuthenticated(true);
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    if (confirm('Voulez-vous vous déconnecter ?')) {
+      localStorage.removeItem('mcp_auth_session');
+      localStorage.removeItem('mcp_auth_user');
+      sessionStorage.removeItem('mcp_auth_session');
+      sessionStorage.removeItem('mcp_auth_user');
+      setIsAuthenticated(false);
+      setCurrentUser('');
+    }
+  };
 
   const handleSaveAndAnalyze = (newDossier) => {
     const saved = dossierStorageService.save(newDossier);
@@ -58,10 +88,16 @@ export default function App() {
     setActiveDossier(updated);
   };
 
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       <Navbar
         onNewDossier={() => setActiveTab('new')}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       <div className="flex-1 flex">

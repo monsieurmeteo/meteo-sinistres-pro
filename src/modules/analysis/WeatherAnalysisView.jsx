@@ -245,26 +245,16 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           </div>
         </div>
 
-        {/* 2 Boutons de Téléchargement PDF */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Bouton de Téléchargement Certificat d'Intempéries (1 Page) */}
+        <div className="flex items-center">
           <button
             onClick={handleDownloadCertificat1Page}
             disabled={isGeneratingPdf1}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition disabled:opacity-50 transform hover:-translate-y-0.5"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition disabled:opacity-50 transform hover:-translate-y-0.5"
             title="Format standard officiel 1 page pour règlement rapide d'assurance"
           >
             <FileCheck className="w-4 h-4" />
-            {isGeneratingPdf1 ? 'Génération…' : "📄 Certificat d'Intempéries (1 Page)"}
-          </button>
-
-          <button
-            onClick={handleDownloadRapport2Pages}
-            disabled={isGeneratingPdf2}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white shadow-md shadow-sky-600/20 transition disabled:opacity-50 transform hover:-translate-y-0.5"
-            title="Format complet 2 pages avec cartographie HD et climatologie"
-          >
-            <Download className="w-4 h-4" />
-            {isGeneratingPdf2 ? 'Génération…' : "📑 Rapport Complet avec Carte (2 Pages)"}
+            {isGeneratingPdf1 ? 'Génération du PDF…' : "📄 Télécharger le Certificat d'Intempéries (PDF)"}
           </button>
         </div>
       </div>
