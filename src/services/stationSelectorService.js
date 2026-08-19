@@ -19,48 +19,64 @@ export const stationSelectorService = {
   },
 
   /**
-   * Trouve et classe les 5 meilleures stations UNIQUEMENT 100% ÉQUIPÉES (Vent + Pluie + Température)
-   * Exclusion stricte des postes sans anémomètre ou non équipés
+   * Sélectionne les 3 meilleures stations de référence réellement exploitables.
+   * Élargissement progressif du rayon : 30 km -> 50 km -> 75 km -> 100 km.
+   * Ne jamais inventer de fausse station si seulement 1 ou 2 stations existent.
    */
-  findBestStations(targetLat, targetLon, targetAlt = 0) {
+  findBestStations(targetLat, targetLon, targetAlt = 0, claimType = '') {
     if (!targetLat || !targetLon) return [];
 
     const all = this.getAllStations();
-    const fullyEquippedStations = [];
+    const typeLower = (claimType || '').toLowerCase();
+
+    // Critère selon l'aléa
+    const needsWind = typeLower.includes('vent') || typeLower.includes('tempête') || typeLower.includes('rafale') || typeLower.includes('orage');
+    
+    const candidates = [];
 
     for (const st of all) {
       if (!st.lat || !st.lon || (st.lat === 48.85 && st.lon === 2.35 && st.dept !== '75')) continue;
       
-      // Seules les stations SYNOP / RADOME officielles Météo-France avec anémomètre sont retenues
       const isAnemoStation = st.id.endsWith('001') || st.id.endsWith('002') || st.id.endsWith('003') || st.id.endsWith('004') || st.typePoste === 1;
       
-      // Filtrer STRICTEMENT les stations non équipées
-      if (!isAnemoStation) continue;
+      // Si vent requis, priorité absolue aux stations équipées d'anémomètre
+      if (needsWind && !isAnemoStation) continue;
 
       const dist = haversineDistance(targetLat, targetLon, st.lat, st.lon);
 
-      fullyEquippedStations.push({
+      candidates.push({
         ...st,
         distance: Math.round(dist * 10) / 10,
         altDiff: Math.abs((st.alt || 0) - targetAlt),
-        hasRain: true,
-        hasWind: true,
-        hasTemp: true,
-        isComplete: true
+        isAnemo: isAnemoStation
       });
     }
 
-    // Tri par distance géographique (avec départage altitude si distance similaire)
-    fullyEquippedStations.sort((a, b) => {
-      if (Math.abs(a.distance - b.distance) > 5) return a.distance - b.distance;
+    // Tri par distance puis altitude
+    candidates.sort((a, b) => {
+      if (Math.abs(a.distance - b.distance) > 4) return a.distance - b.distance;
       return a.altDiff - b.altDiff;
     });
 
-    const top5 = fullyEquippedStations.slice(0, 5);
+    // Élargissement progressif du rayon
+    const radii = [30, 50, 75, 100, 150];
+    let selected = [];
 
-    return top5.map((s, idx) => ({
+    for (const r of radii) {
+      const withinRadius = candidates.filter(s => s.distance <= r);
+      if (withinRadius.length >= 3) {
+        selected = withinRadius.slice(0, 3);
+        break;
+      }
+      selected = withinRadius;
+    }
+
+    // Maximum 3 stations
+    const top3 = selected.slice(0, 3);
+
+    return top3.map((s, idx) => ({
       ...s,
-      isTop5: true,
+      isTop3: true,
       rank: idx + 1
     }));
   }

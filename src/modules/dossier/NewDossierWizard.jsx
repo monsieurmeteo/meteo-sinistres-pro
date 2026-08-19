@@ -92,7 +92,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     setAddressQuery(loc.label);
     setAddressSuggestions([]);
 
-    const stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
+    const stations = stationSelectorService.findBestStations(loc.lat, loc.lon, 0, sinistreType);
     setDiscoveredStations(stations);
   };
 
@@ -118,7 +118,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
 
     const stations = discoveredStations.length > 0
       ? discoveredStations
-      : stationSelectorService.findBestStations(selectedLocation.lat, selectedLocation.lon);
+      : stationSelectorService.findBestStations(selectedLocation.lat, selectedLocation.lon, 0, sinistreType);
 
     const effectiveDateSinistre = dateMode === 'single' ? dateSinistre : `${dateDebut} au ${dateFin}`;
 

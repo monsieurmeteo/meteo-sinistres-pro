@@ -30,7 +30,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const loadStationData = async () => {
     setLoading(true);
     setError(null);
-    setProgressMsg('Interrogation des 5 stations Météo-France 100% équipées…');
+    setProgressMsg('Interrogation des 3 stations Météo-France de référence…');
 
     try {
       const selected = dossier.selectedStations || [];
