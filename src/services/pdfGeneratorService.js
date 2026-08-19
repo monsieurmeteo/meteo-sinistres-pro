@@ -3,16 +3,18 @@ import html2canvas from 'html2canvas';
 
 export const pdfGeneratorService = {
   /**
-   * Génération et téléchargement du PDF A4 certifié avec capture de la carte Leaflet
+   * Génération Page par Page certifiée :
+   * Capture Page 1 séparément puis Page 2 séparément.
+   * Empêche tout chevauchement ou coupure de tableau au milieu de page.
    */
   async generateSinistrePdf(elementId, dossierRef = 'Rapport-Sinistre') {
-    const element = document.getElementById(elementId);
-    if (!element) {
+    const rootElement = document.getElementById(elementId);
+    if (!rootElement) {
       throw new Error(`Élément #${elementId} introuvable pour la génération PDF`);
     }
 
-    // 1. Capture instantanée de la carte Leaflet affichée à l'écran
-    const mapElement = document.getElementById('sinistre-map-leaflet-container') || document.querySelector('.leaflet-container');
+    // 1. Capture propre de la carte Leaflet
+    const mapElement = document.getElementById('sinistre-map-leaflet-container');
     if (mapElement) {
       try {
         const mapCanvas = await html2canvas(mapElement, {
@@ -29,48 +31,50 @@ export const pdfGeneratorService = {
           pdfMapImg.style.display = 'block';
         }
       } catch (e) {
-        console.warn('[PDF] Impossible de capturer la carte Leaflet:', e);
+        console.warn('[PDF] Erreur capture carte:', e);
       }
     }
 
-    // 2. Afficher temporairement l'élément PDF
-    const prevDisplay = element.style.display;
-    element.style.display = 'block';
-
-    // Laisser 100ms au DOM pour insérer l'image de la carte
-    await new Promise(res => setTimeout(res, 100));
+    // 2. Afficher temporairement le conteneur PDF
+    const prevDisplay = rootElement.style.display;
+    rootElement.style.display = 'block';
+    await new Promise(res => setTimeout(res, 120));
 
     try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: 1200
-      });
+      const page1El = document.getElementById('pdf-page-1') || rootElement.children[0];
+      const page2El = document.getElementById('pdf-page-2') || rootElement.children[1];
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210 mm
+      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 mm
 
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      // Capture Page 1
+      if (page1El) {
+        const canvas1 = await html2canvas(page1El, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 1000
+        });
+        const img1 = canvas1.toDataURL('image/jpeg', 0.96);
+        pdf.addImage(img1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      }
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Première page
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      // Pages suivantes si nécessaire
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
+      // Capture Page 2
+      if (page2El) {
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        const canvas2 = await html2canvas(page2El, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: 1000
+        });
+        const img2 = canvas2.toDataURL('image/jpeg', 0.96);
+        pdf.addImage(img2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
       pdf.save(`${dossierRef}.pdf`);
@@ -79,7 +83,7 @@ export const pdfGeneratorService = {
       console.error('[PDFGenerator] Erreur:', err);
       throw err;
     } finally {
-      element.style.display = prevDisplay;
+      rootElement.style.display = prevDisplay;
     }
   }
 };
