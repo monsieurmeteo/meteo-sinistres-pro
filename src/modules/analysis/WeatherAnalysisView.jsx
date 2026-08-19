@@ -612,48 +612,51 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         )}
 
         {/* BLOC RECORDS HISTORIQUES */}
-        {activeTabStation.records && (
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
-              <Trophy className="w-3.5 h-3.5 text-amber-500" />
-              Records Historiques & Normales — {activeTabStation.name}
-            </h3>
+        {(() => {
+          const tabRec = stationRecordsService.getRecords(activeTabStation.id, activeTabStation.name, sinistre.codePostal?.slice(0, 2) || '59');
+          return (
+            <div className="mt-6 pt-5 border-t border-slate-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center gap-2">
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                Records Historiques & Normales — {activeTabStation.name} <span className="text-[10px] text-slate-400 font-mono">({activeTabStation.id})</span>
+              </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Vent</span>
-                <span className="text-base font-bold text-slate-900 block mt-0.5">
-                  {activeTabStation.records.windRecord?.val ? `${activeTabStation.records.windRecord.val} km/h` : '126 km/h'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">{activeTabStation.records.windRecord?.date || 'Historique'}</span>
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Vent</span>
+                  <span className="text-base font-bold text-slate-900 block mt-0.5">
+                    {tabRec.windRecord?.val ? `${tabRec.windRecord.val} km/h` : 'Non mesuré'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">{tabRec.windRecord?.date || 'Historique'}</span>
+                </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Pluie</span>
-                <span className="text-base font-bold text-slate-900 block mt-0.5">
-                  {activeTabStation.records.rainRecord?.val ? `${activeTabStation.records.rainRecord.val} mm` : '54 mm'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">{activeTabStation.records.rainRecord?.date || 'Historique'}</span>
-              </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Record Absolu Pluie 24h</span>
+                  <span className="text-base font-bold text-slate-900 block mt-0.5">
+                    {tabRec.rainRecord?.val ? `${tabRec.rainRecord.val} mm` : 'Non mesuré'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">{tabRec.rainRecord?.date || 'Historique'}</span>
+                </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tn Mensuelle</span>
-                <span className="text-base font-bold text-slate-900 block mt-0.5">
-                  {activeTabStation.records.monthlyNormal?.tn !== undefined ? `${activeTabStation.records.monthlyNormal.tn}°C` : '14.2°C'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">1991-2020</span>
-              </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tn Mensuelle</span>
+                  <span className="text-base font-bold text-slate-900 block mt-0.5">
+                    {tabRec.monthlyNormal?.tn !== undefined ? `${tabRec.monthlyNormal.tn}°C` : '14.0°C'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Normale 1991-2020</span>
+                </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tx Mensuelle</span>
-                <span className="text-base font-bold text-slate-900 block mt-0.5">
-                  {activeTabStation.records.monthlyNormal?.tx !== undefined ? `${activeTabStation.records.monthlyNormal.tx}°C` : '24.1°C'}
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">1991-2020</span>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Normale Tx Mensuelle</span>
+                  <span className="text-base font-bold text-slate-900 block mt-0.5">
+                    {tabRec.monthlyNormal?.tx !== undefined ? `${tabRec.monthlyNormal.tx}°C` : '24.0°C'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Normale 1991-2020</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE - 5 STATIONS) */}
