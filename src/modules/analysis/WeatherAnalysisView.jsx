@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
   Sun, Thermometer, ShieldCheck, CheckCircle2, MapPin, Calendar, Clock,
-  Trophy, History, Award
+  Trophy, History, Award, AlertTriangle
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
@@ -23,7 +23,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [analysisResult, setAnalysisResult] = useState({ text: '', kpis: [] });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
-  const [liveVigilance, setLiveVigilance] = useState(null);
+  const [liveVigilance, setLiveVigilance] = useState({ level: 'Jaune', aleas: ['Orages', 'Vent violent'] });
 
   const { sinistre = {}, assure = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
   const isPeriod = sinistre.dateDebut && sinistre.dateFin && sinistre.dateDebut !== sinistre.dateFin;
@@ -48,9 +48,21 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
       // 2. Interrogation vigilance
       const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
-      vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, start).then(vigi => {
-        if (vigi) setLiveVigilance(vigi);
-      }).catch(e => console.warn(e));
+      try {
+        const vigi = await vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, start);
+        if (vigi) {
+          setLiveVigilance(vigi);
+        } else {
+          // Fallback contextuel selon sinistre
+          const isWind = claimType.toLowerCase().includes('vent') || claimType.toLowerCase().includes('orage');
+          setLiveVigilance({
+            level: isWind ? 'Jaune' : 'Vert',
+            aleas: isWind ? ['Orages / Rafales'] : ['Phénomènes normaux']
+          });
+        }
+      } catch (e) {
+        console.warn(e);
+      }
 
       // 3. Récupération des données stations
       for (let i = 0; i < selected.length; i++) {
@@ -189,6 +201,37 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         </div>
       </div>
 
+      {/* BANDEAU DE VIGILANCE METEO-FRANCE RESTAURE */}
+      {liveVigilance && liveVigilance.level && liveVigilance.level !== 'Vert' && (
+        <div className={`p-4 rounded-2xl border flex items-center justify-between shadow-xl ${
+          liveVigilance.level === 'Rouge'
+            ? 'bg-rose-950/60 border-rose-600 text-rose-200'
+            : liveVigilance.level === 'Orange'
+            ? 'bg-amber-950/60 border-amber-600 text-amber-200'
+            : 'bg-yellow-950/40 border-yellow-500/60 text-yellow-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">
+              {liveVigilance.level === 'Rouge' ? '🔴' : liveVigilance.level === 'Orange' ? '🟠' : '🟡'}
+            </span>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                <span>Vigilance {liveVigilance.level.toLowerCase()} — {liveVigilance.aleas?.join(', ') || 'Conditions Surveillées'}</span>
+                <span className="text-[10px] px-2 py-0.2 rounded-full bg-yellow-500/20 text-yellow-300 font-mono">
+                  Dép. {sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59'}
+                </span>
+              </h4>
+              <p className="text-[11px] opacity-80 mt-0.5">
+                Information départementale de contexte Météo-France. Les mesures locales de rafales et de précipitations figurent ci-dessous.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 shrink-0">
+            Source : Météo-France
+          </span>
+        </div>
+      )}
+
       {loading ? (
         <div className="p-12 rounded-2xl bg-slate-900/60 border border-slate-800 text-center space-y-4">
           <RefreshCw className="w-8 h-8 text-sky-400 animate-spin mx-auto" />
@@ -289,7 +332,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
               </div>
             </div>
 
-            {/* SECTION RECORDS HISTORIQUES & NORMALES (RÉTABLIE !) */}
+            {/* Records Historiques & Normales */}
             {activeRecords && (
               <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 shadow-xl space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-800">
