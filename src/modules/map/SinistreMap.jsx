@@ -44,7 +44,6 @@ export default function SinistreMap({ sinistre, stations = [] }) {
   const center = [sinistre.lat, sinistre.lon];
   const mapKey = `${sinistre.lat.toFixed(4)}_${sinistre.lon.toFixed(4)}_${stations.length}`;
 
-  // Déterminer la valeur max observée à proximité
   const validGusts = stations.map(s => s.obs?.fxi).filter(v => v !== null && v !== undefined);
   const maxProximityGust = validGusts.length > 0 ? Math.max(...validGusts) : null;
 
@@ -52,131 +51,121 @@ export default function SinistreMap({ sinistre, stations = [] }) {
   const maxProximityRain = validRains.length > 0 ? Math.max(...validRains) : null;
 
   return (
-    <div className="h-[460px] w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
+    <div id="sinistre-map-leaflet-container" className="h-[460px] w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
       <MapContainer
         key={mapKey}
         center={center}
         zoom={10}
         scrollWheelZoom={false}
-        className="h-full w-full z-0"
+        className="h-full w-full z-10"
       >
-        <MapResizer />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          crossOrigin="anonymous"
         />
 
-        {/* Marqueur du sinistre 🔴 avec badge permanent des valeurs à proximité */}
+        <MapResizer />
+
+        {/* 🔴 Marqueur Sinistre avec Badge Permanent */}
         <Marker position={center} icon={redIcon}>
-          <Popup>
-            <div className="text-slate-900 font-sans text-xs">
-              <strong className="text-rose-600 block font-bold text-sm">🔴 Lieu du Sinistre</strong>
-              <p className="mt-1 font-semibold">{sinistre.adresseSinistre || sinistre.commune}</p>
-              <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                {sinistre.lat.toFixed(4)}°N, {sinistre.lon.toFixed(4)}°E
-              </p>
-              <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] space-y-0.5">
-                {maxProximityGust !== null && (
-                  <p className="text-rose-700 font-bold">💨 Rafale max mesurée à proximité : {maxProximityGust} km/h</p>
-                )}
-                {maxProximityRain !== null && (
-                  <p className="text-sky-700 font-bold">🌧️ Pluie max mesurée à proximité : {maxProximityRain} mm</p>
-                )}
+          <Tooltip permanent direction="top" offset={[0, -42]} opacity={0.95} className="custom-sinistre-tooltip">
+            <div className="bg-slate-900 text-white p-2 rounded-xl border border-rose-500/50 shadow-2xl text-center min-w-[170px]">
+              <div className="flex items-center justify-center gap-1 text-[11px] font-extrabold text-rose-400 uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block" />
+                Lieu du Sinistre
               </div>
-            </div>
-          </Popup>
-          <Tooltip permanent direction="top" offset={[0, -44]} className="custom-map-tooltip">
-            <div className="bg-slate-900/95 text-white p-2 rounded-xl shadow-xl border border-rose-500/50 text-left font-sans text-[11px]">
-              <div className="flex items-center gap-1.5 font-bold text-rose-400">
-                <span>🔴 Lieu du Sinistre</span>
+              <div className="text-[10px] text-slate-300 font-medium truncate max-w-[160px] mt-0.5">
+                {sinistre.adresseSinistre || sinistre.commune}
               </div>
-              <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-200">
+              <div className="flex items-center justify-center gap-2 mt-1.5 pt-1.5 border-t border-slate-800 text-[10px]">
                 {maxProximityGust !== null && (
-                  <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 font-bold">
+                  <span className="font-extrabold text-rose-300 bg-rose-500/20 px-1.5 py-0.5 rounded">
                     💨 {maxProximityGust} km/h
                   </span>
                 )}
                 {maxProximityRain !== null && (
-                  <span className="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold">
+                  <span className="font-extrabold text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded">
                     🌧️ {maxProximityRain} mm
                   </span>
                 )}
               </div>
             </div>
           </Tooltip>
+
+          <Popup>
+            <div className="p-1 font-sans text-xs">
+              <strong className="text-rose-700 block font-bold">Lieu du Sinistre</strong>
+              <p className="text-slate-700 mt-1">{sinistre.adresseSinistre || sinistre.commune}</p>
+              <p className="text-slate-500 font-mono text-[10px]">{sinistre.lat.toFixed(4)}°N, {sinistre.lon.toFixed(4)}°E</p>
+            </div>
+          </Popup>
         </Marker>
 
-        {/* Marqueurs des 5 stations 🔵 + Valeurs affichées directement */}
+        {/* 🔵 Marqueurs des 5 Stations avec Badges Permanents */}
         {stations.map((st, idx) => {
           if (!st.lat || !st.lon) return null;
-          const stPos = [st.lat, st.lon];
+          const pos = [st.lat, st.lon];
 
           return (
             <React.Fragment key={st.id || idx}>
-              <Marker position={stPos} icon={blueIcon}>
-                <Popup>
-                  <div className="text-slate-900 font-sans text-xs">
-                    <strong className="text-sky-600 block font-bold text-sm">
-                      🔵 Station #{idx + 1} : {st.name}
-                    </strong>
-                    <p className="mt-1">Indicatif Météo-France : <span className="font-mono font-bold">{st.id}</span></p>
-                    <p>Distance au sinistre : <strong>{st.distance} km</strong></p>
-                    <p>Altitude : {st.alt} m</p>
-                    {st.obs && (
-                      <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] space-y-0.5">
-                        <p>🌧️ Pluie 24h : <strong>{st.obs.rr !== null && st.obs.rr !== undefined ? `${st.obs.rr} mm` : '-'}</strong></p>
-                        <p>💨 Rafale max (OMM 3s) : <strong className="text-rose-600">{st.obs.fxi !== null && st.obs.fxi !== undefined ? `${st.obs.fxi} km/h` : 'Non équipé'}</strong> {st.obs.hxi && `(${st.obs.hxi})`}</p>
-                        <p>🌡️ Températures : <strong>{st.obs.tn ?? '-'}°C / {st.obs.tx ?? '-'}°C</strong></p>
-                      </div>
-                    )}
-                  </div>
-                </Popup>
+              <Polyline
+                positions={[center, pos]}
+                color="#0284c7"
+                dashArray="6, 8"
+                weight={2}
+                opacity={0.7}
+              />
 
-                {/* Badge Permanent sur chaque station */}
-                <Tooltip permanent direction="bottom" offset={[0, 10]} className="custom-station-tooltip">
-                  <div className="bg-slate-900/90 text-white px-2 py-1 rounded-lg border border-sky-500/40 text-center font-sans text-[10px] shadow-lg leading-tight">
-                    <strong className="block text-sky-300 font-semibold truncate max-w-[110px]">
+              <Marker position={pos} icon={blueIcon}>
+                <Tooltip permanent direction="bottom" offset={[0, 10]} opacity={0.92} className="custom-station-tooltip">
+                  <div className="bg-slate-900 text-white px-2.5 py-1.5 rounded-lg border border-sky-500/40 shadow-xl text-center min-w-[140px]">
+                    <div className="text-[10px] font-bold text-sky-300 truncate">
                       #{idx + 1} {st.name} ({st.distance} km)
-                    </strong>
-                    <div className="flex items-center justify-center gap-1.5 mt-0.5 text-[9px] text-slate-300 font-mono">
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 mt-0.5 text-[9px] font-mono">
                       {st.obs?.fxi !== null && st.obs?.fxi !== undefined && (
-                        <span className="text-rose-400 font-bold">💨 {st.obs.fxi}k</span>
+                        <span className="text-rose-300 font-bold">💨 {st.obs.fxi}k</span>
                       )}
                       {st.obs?.rr !== null && st.obs?.rr !== undefined && (
-                        <span className="text-cyan-400">🌧️ {st.obs.rr}m</span>
+                        <span className="text-cyan-300 font-bold">🌧️ {st.obs.rr}m</span>
                       )}
                       {st.obs?.tx !== null && st.obs?.tx !== undefined && (
-                        <span className="text-amber-400">{st.obs.tx}°</span>
+                        <span className="text-amber-300 font-bold">{st.obs.tx}°</span>
                       )}
                     </div>
                   </div>
                 </Tooltip>
-              </Marker>
 
-              {/* Ligne géodésique pointillée */}
-              <Polyline
-                positions={[center, stPos]}
-                pathOptions={{
-                  color: '#0284c7',
-                  weight: 2,
-                  dashArray: '5, 7',
-                  opacity: 0.75
-                }}
-              />
+                <Popup>
+                  <div className="p-1 font-sans text-xs">
+                    <strong className="text-sky-700 block font-bold">#{idx + 1} {st.name} ({st.id})</strong>
+                    <p className="text-slate-600 mt-1">Distance : <span className="font-bold">{st.distance} km</span></p>
+                    <p className="text-slate-600">Altitude : {st.alt} m</p>
+                    {st.obs && (
+                      <div className="mt-1 pt-1 border-t border-slate-200 font-mono text-[11px] space-y-0.5">
+                        <p className="text-rose-600">Rafale Max : <strong>{st.obs.fxi ? `${st.obs.fxi} km/h` : '-'}</strong></p>
+                        <p className="text-cyan-600">Pluie 24h : <strong>{st.obs.rr !== null ? `${st.obs.rr} mm` : '-'}</strong></p>
+                        <p className="text-slate-700">Tn / Tx : {st.obs.tn}° / {st.obs.tx}°</p>
+                      </div>
+                    )}
+                  </div>
+                </Popup>
+              </Marker>
             </React.Fragment>
           );
         })}
       </MapContainer>
 
-      {/* Légende interactive flottante */}
-      <div className="absolute bottom-3 right-3 z-[400] glass-card px-3.5 py-2 rounded-xl text-xs space-y-1 shadow-2xl border border-slate-700/80 bg-slate-950/90">
+      {/* Légende interactive */}
+      <div className="absolute bottom-3 right-3 z-20 bg-slate-900/90 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700 text-[11px] text-slate-300 shadow-xl space-y-1">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-rose-500 inline-block shadow-sm"></span>
-          <span className="text-slate-200 font-semibold">Lieu du sinistre & valeurs estimées</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
+          <span>Lieu du sinistre & valeurs observées</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-sky-500 inline-block shadow-sm"></span>
-          <span className="text-slate-200">5 Stations Météo-France de référence</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block" />
+          <span>5 Stations Météo-France de référence</span>
         </div>
       </div>
     </div>

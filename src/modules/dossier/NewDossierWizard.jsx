@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Shield, User, MapPin, Calendar, Clock, FileText, CheckCircle2, 
-  Search, ArrowRight, AlertCircle, Building2, Radio, Sparkles
+  Search, ArrowRight, AlertCircle, Building2, X
 } from 'lucide-react';
 import { geocodingService } from '../../services/geocodingService';
 import { stationSelectorService } from '../../services/stationSelectorService';
@@ -18,7 +18,6 @@ const SINISTRE_TYPES = [
 ];
 
 export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
-  // Informations Assuré (Formulaire vierge par défaut)
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
   const [societe, setSociete] = useState('');
@@ -27,7 +26,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   const [numContrat, setNumContrat] = useState('');
   const [compagnieAssurance, setCompagnieAssurance] = useState('');
 
-  // Mode Date : 'single' (date unique) ou 'period' (période)
   const [dateMode, setDateMode] = useState('single');
 
   const yesterday = new Date();
@@ -46,18 +44,36 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
   const [description, setDescription] = useState('');
   const [observations, setObservations] = useState('');
 
-  // Localisation (Vierge par défaut)
+  // Localisation
   const [addressQuery, setAddressQuery] = useState('');
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const searchContainerRef = useRef(null);
 
-  // 5 Stations découvertes (uniquement après saisie d'un lieu)
+  // 5 Stations découvertes
   const [discoveredStations, setDiscoveredStations] = useState([]);
 
-  // Recherche adresse en direct
+  // Fermer la liste déroulante si on clique en dehors
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setAddressSuggestions([]);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Recherche d'adresse BAN
   useEffect(() => {
     if (!addressQuery || addressQuery.trim().length < 2) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    // Ne pas rechercher si l'adresse tapée correspond exactement à l'adresse sélectionnée
+    if (selectedLocation && addressQuery === selectedLocation.label) {
       setAddressSuggestions([]);
       return;
     }
@@ -70,17 +86,24 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [addressQuery]);
+  }, [addressQuery, selectedLocation]);
 
-  // Sélection d'une adresse par l'utilisateur
+  // Clic sur une suggestion : sélectionne et FERME immédiatement la liste
   const handleSelectAddress = (loc) => {
     setSelectedLocation(loc);
     setAddressQuery(loc.label);
-    setAddressSuggestions([]);
+    setAddressSuggestions([]); // FERMETURE IMMÉDIATE
 
-    // Découvrir les 5 stations 100% ouvertes et équipées
+    // Découverte des 5 stations 100% ouvertes et équipées
     const stations = stationSelectorService.findBestStations(loc.lat, loc.lon);
     setDiscoveredStations(stations);
+  };
+
+  const handleClearAddress = () => {
+    setSelectedLocation(null);
+    setAddressQuery('');
+    setAddressSuggestions([]);
+    setDiscoveredStations([]);
   };
 
   const handleSubmit = (e) => {
@@ -92,7 +115,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
     }
 
     if (!selectedLocation) {
-      alert('Veuillez renseigner et sélectionner une adresse ou commune dans la liste pour localiser le sinistre.');
+      alert('Veuillez rechercher et sélectionner une adresse ou commune dans la liste.');
       return;
     }
 
@@ -146,7 +169,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             Nouveau Dossier de Sinistre
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Saisie d'un nouveau sinistre — Analyse sur les 5 stations Météo-France ouvertes et 100% équipées
+            Formulaire de déclaration — Analyse automatique sur les 5 stations Météo-France les plus proches
           </p>
         </div>
         <button
@@ -206,7 +229,7 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 type="text"
                 value={compagnieAssurance}
                 onChange={e => setCompagnieAssurance(e.target.value)}
-                placeholder="Ex: AXA, Allianz, Groupama, Macif..."
+                placeholder="Ex: AXA, Allianz, Groupama..."
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
               />
             </div>
@@ -259,11 +282,11 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
             <MapPin className="w-5 h-5 text-sky-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-              2. Localisation Exacte du Sinistre (API BAN Nationale)
+              2. Localisation Exacte du Sinistre
             </h3>
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={searchContainerRef}>
             <label className="text-xs font-semibold text-slate-300 block mb-1">
               Adresse exacte, Commune ou Code Postal *
             </label>
@@ -272,16 +295,30 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 type="text"
                 required
                 value={addressQuery}
-                onChange={e => setAddressQuery(e.target.value)}
-                placeholder="Rechercher une adresse, commune ou code postal (ex: Douai, 59500, Paris)..."
-                className="w-full px-4 py-3 pl-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                onChange={e => {
+                  setAddressQuery(e.target.value);
+                  if (selectedLocation && e.target.value !== selectedLocation.label) {
+                    setSelectedLocation(null);
+                  }
+                }}
+                placeholder="Rechercher une commune ou adresse (ex: Douai, Valenciennes, Paris)..."
+                className="w-full px-4 py-3 pl-10 pr-10 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
               />
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+              {addressQuery && (
+                <button
+                  type="button"
+                  onClick={handleClearAddress}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-white p-0.5"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
-            {/* Suggestions BAN */}
+            {/* Suggestions BAN déroulantes */}
             {addressSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-2 glass-card rounded-xl border border-slate-700 shadow-2xl p-2 z-50 overflow-hidden space-y-1 bg-slate-950/95">
+              <div className="absolute left-0 right-0 mt-1 glass-card rounded-xl border border-slate-700 shadow-2xl p-2 z-50 overflow-hidden space-y-1 bg-slate-950">
                 {addressSuggestions.map((loc, i) => (
                   <button
                     key={i}
@@ -300,25 +337,25 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
             )}
           </div>
 
+          {/* Lieu validé */}
           {selectedLocation && (
             <div className="p-4 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-between">
               <div>
-                <p className="text-xs font-bold text-sky-300">Point géoréférencé avec succès :</p>
+                <p className="text-xs font-bold text-sky-300">Point géoréférencé :</p>
                 <p className="text-sm font-semibold text-white mt-0.5">{selectedLocation.label}</p>
                 <p className="text-xs font-mono text-slate-400 mt-0.5">
-                  Latitude : {selectedLocation.lat.toFixed(4)}°N | Longitude : {selectedLocation.lon.toFixed(4)}°E
+                  GPS : {selectedLocation.lat.toFixed(4)}°N | {selectedLocation.lon.toFixed(4)}°E
                 </p>
               </div>
               <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0" />
             </div>
           )}
 
-          {/* 5 Stations découvertes automatiquement (100% ouvertes et équipées) */}
+          {/* 5 Stations découvertes (SANS la mention "capteurs actifs") */}
           {discoveredStations.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-800">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center justify-between">
-                <span>5 Stations Météo-France ouvertes & 100% équipées retenues :</span>
-                <span className="text-emerald-400 text-[11px] font-bold">✅ Vent OMM • ✅ Pluie • ✅ Température</span>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">
+                5 Stations Météo-France de référence retenues :
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
@@ -336,7 +373,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                     <div className="mt-2 pt-2 border-t border-slate-800 text-[10px] text-slate-400 space-y-0.5">
                       <p>ID : <span className="font-mono text-slate-300">{st.id}</span></p>
                       <p>Alt : {st.alt} m</p>
-                      <p className="text-emerald-400 text-[9px]">Capteurs actifs</p>
                     </div>
                   </div>
                 ))}
@@ -345,17 +381,16 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
           )}
         </div>
 
-        {/* Section 3 : Date unique OU Période & Circonstances */}
+        {/* Section 3 : Date unique OU Période */}
         <div className="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 shadow-xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-sky-400" />
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-200">
-                3. Temporalité du Sinistre (Date Unique ou Période)
+                3. Temporalité du Sinistre
               </h3>
             </div>
 
-            {/* Toggle Date Unique / Période */}
             <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold">
               <button
                 type="button"
@@ -392,7 +427,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
               </select>
             </div>
 
-            {/* Date unique */}
             {dateMode === 'single' ? (
               <div>
                 <label className="text-xs font-semibold text-slate-300 block mb-1">Date exacte du sinistre *</label>
@@ -405,7 +439,6 @@ export default function NewDossierWizard({ onSaveAndAnalyze, onCancel }) {
                 />
               </div>
             ) : (
-              /* Période (Date début et Date fin) */
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1">Date de Début *</label>

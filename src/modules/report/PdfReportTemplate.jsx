@@ -23,10 +23,6 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
   const maxProximityRain = validRains.length > 0 ? Math.max(...validRains) : null;
   const bestRainStation = equippedStations.find(s => s.obs?.rr === maxProximityRain) || equippedStations[0];
 
-  const mapStaticUrl = sinistre.lat && sinistre.lon 
-    ? `https://static-maps.yandex.ru/1.x/?lang=fr_FR&ll=${sinistre.lon},${sinistre.lat}&z=10&l=map&size=650,260&pt=${sinistre.lon},${sinistre.lat},pm2rdm`
-    : null;
-
   return (
     <div id="pdf-report-container" className="bg-white text-slate-900 font-sans p-10 max-w-[920px] mx-auto hidden print:block shadow-2xl leading-normal">
       
@@ -51,8 +47,8 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
 
           {/* Titre Principal de l'Attestation */}
-          <div className="mt-8 text-center">
-            <span className="text-xs font-bold uppercase tracking-widest text-sky-700 bg-sky-50 border border-sky-200 px-3.5 py-1 rounded-full inline-block mb-2">
+          <div className="mt-6 text-center">
+            <span className="text-xs font-bold uppercase tracking-widest text-sky-700 bg-sky-50 border border-sky-200 px-3.5 py-1 rounded-full inline-block mb-1.5">
               Attestation Technique d'Intempérie
             </span>
             <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">
@@ -64,7 +60,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
 
           {/* Fiches Assuré & Sinistre */}
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-2 gap-4 mt-5">
             {/* Encadré Assuré */}
             <div className="border border-slate-300 rounded-xl p-3.5 bg-slate-50/80 shadow-sm">
               <h3 className="text-xs font-bold uppercase tracking-wider text-sky-900 mb-2 pb-1 border-b border-slate-200 flex items-center justify-between">
@@ -99,8 +95,8 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
 
           {/* Synthèse Chiffrée Clé Grand Public */}
-          <div className="mt-5 border-2 border-sky-600 rounded-2xl p-4 bg-sky-50/50">
-            <h3 className="text-xs font-black uppercase tracking-wider text-sky-950 mb-2.5 flex items-center justify-between">
+          <div className="mt-4 border-2 border-sky-600 rounded-2xl p-3.5 bg-sky-50/50">
+            <h3 className="text-xs font-black uppercase tracking-wider text-sky-950 mb-2 flex items-center justify-between">
               <span>Synthèse des Mesures Observées à Proximité Immédiate</span>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-900">
                 Représentativité : {analysisResult.confidence?.level || 'Élevée'}
@@ -108,9 +104,9 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </h3>
 
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Rafale Max Observée</span>
-                <span className="text-2xl font-black text-rose-600 block mt-0.5">
+                <span className="text-xl font-black text-rose-600 block mt-0.5">
                   {maxProximityGust !== null ? `${maxProximityGust} km/h` : 'Non mesuré'}
                 </span>
                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -118,9 +114,9 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                 </span>
               </div>
 
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Précipitations Observées</span>
-                <span className="text-2xl font-black text-cyan-600 block mt-0.5">
+                <span className="text-xl font-black text-cyan-600 block mt-0.5">
                   {maxProximityRain !== null ? `${maxProximityRain} mm` : '-'}
                 </span>
                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -128,9 +124,9 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
                 </span>
               </div>
 
-              <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
                 <span className="text-[10px] uppercase font-bold text-slate-500 block">Réseau 100% Équipé</span>
-                <span className="text-2xl font-black text-sky-700 block mt-0.5">
+                <span className="text-xl font-black text-sky-700 block mt-0.5">
                   {equippedStations.length} Stations
                 </span>
                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -140,43 +136,58 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           </div>
 
-          {/* Cartographie Intégrée dans l'Attestation */}
-          <div className="mt-5 border border-slate-300 rounded-2xl p-4 bg-slate-50">
+          {/* Cartographie Géoréférencée Intégrée dans le PDF */}
+          <div className="mt-4 border border-slate-300 rounded-2xl p-3 bg-slate-50">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2 flex items-center justify-between">
-              <span>3. Cartographie & Emplacement Géoréférencé</span>
-              <span className="text-[10px] text-slate-500">Lieu du sinistre 🔴 et Postes Météo-France 🔵</span>
+              <span>3. Cartographie & Emplacement Géoréférencé (Sinistre 🔴 & Postes 🔵)</span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                {sinistre.lat?.toFixed(4)}°N, {sinistre.lon?.toFixed(4)}°E
+              </span>
             </h3>
             
-            {/* Schéma / Grille Visuelle des Postes Autour du Sinistre */}
-            <div className="bg-white rounded-xl border border-slate-300 p-3 space-y-2">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs">
-                <span className="font-bold text-rose-700">🔴 Sinistre : {sinistre.adresseSinistre || sinistre.commune}</span>
-                <span className="font-mono text-slate-500 text-[11px]">{sinistre.lat?.toFixed(4)}°N, {sinistre.lon?.toFixed(4)}°E</span>
-              </div>
-              <div className="grid grid-cols-5 gap-2 text-center pt-1">
-                {equippedStations.slice(0, 5).map((st, i) => (
-                  <div key={st.id || i} className="p-2 rounded-lg bg-sky-50/80 border border-sky-200 text-[10px]">
-                    <strong className="block text-slate-900 font-bold truncate">#{i+1} {st.name}</strong>
-                    <span className="text-sky-700 font-extrabold block mt-0.5">{st.distance} km</span>
-                    <span className="text-rose-600 font-bold block mt-0.5">{st.obs?.fxi ? `💨 ${st.obs.fxi} km/h` : '-'}</span>
-                    <span className="text-cyan-700 block">{st.obs?.rr !== null && st.obs?.rr !== undefined ? `🌧️ ${st.obs.rr} mm` : '-'}</span>
-                  </div>
-                ))}
+            {/* Image de la carte capturée dynamiquement */}
+            <div className="w-full h-52 bg-slate-200 rounded-xl overflow-hidden border border-slate-300 relative flex items-center justify-center">
+              <img 
+                id="pdf-map-snapshot-img" 
+                alt="Carte géoréférencée" 
+                className="w-full h-full object-cover rounded-xl"
+                style={{ display: 'none' }}
+              />
+              <div className="w-full h-full p-2.5 flex flex-col justify-between bg-sky-50/50">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-rose-700 bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-sm">
+                    🔴 Lieu du sinistre : {sinistre.adresseSinistre || sinistre.commune}
+                  </span>
+                  <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-slate-200">
+                    Rayon : ~35 km
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5 text-center">
+                  {equippedStations.slice(0, 5).map((st, i) => (
+                    <div key={st.id || i} className="bg-white/95 p-1.5 rounded-lg border border-sky-300 shadow-sm text-[9px]">
+                      <strong className="block text-slate-900 font-bold truncate">#{i+1} {st.name}</strong>
+                      <span className="text-sky-700 font-extrabold block">{st.distance} km</span>
+                      <span className="text-rose-600 font-bold block">{st.obs?.fxi ? `${st.obs.fxi} km/h` : '-'}</span>
+                      <span className="text-cyan-700 block">{st.obs?.rr !== null && st.obs?.rr !== undefined ? `${st.obs.rr} mm` : '-'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Pied de Page Garde */}
-        <div className="flex justify-between items-end pt-4 border-t border-slate-300 text-[11px] text-slate-500">
+        <div className="flex justify-between items-end pt-3 border-t border-slate-300 text-[11px] text-slate-500">
           <div>
             <p><strong>Météo Climat PRO SASU</strong> — Expertise météorologique et certification pour assurances</p>
             <p>Rapport d'expertise n° {reference} — Édité le {new Date().toLocaleDateString('fr-FR')}</p>
           </div>
           {qrUrl && (
             <div className="text-center">
-              <img src={qrUrl} alt="QR Code" className="w-14 h-14 mx-auto mb-1 border border-slate-300 rounded p-0.5 bg-white" />
-              <span className="text-[9px] font-bold text-slate-500">Certificat authentifié</span>
+              <img src={qrUrl} alt="QR Code" className="w-12 h-12 mx-auto mb-1 border border-slate-300 rounded p-0.5 bg-white" />
+              <span className="text-[8px] font-bold text-slate-500">Certificat authentifié</span>
             </div>
           )}
         </div>
@@ -186,20 +197,20 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
       <div className="min-h-[1120px] flex flex-col justify-between pt-4">
         <div>
           {/* Header secondaire */}
-          <div className="flex justify-between items-center pb-3 border-b border-slate-300 mb-6">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-300 mb-5">
             <span className="text-xs font-extrabold text-sky-800 uppercase">Météo Climat PRO — Dossier {reference}</span>
             <span className="text-xs text-slate-500 font-medium">{sinistre.commune} — {sinistre.dateSinistre}</span>
           </div>
 
           {/* 1. Tableau Comparatif des Stations Complètes */}
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 mb-3 border-l-4 border-sky-600 pl-2.5">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2.5 border-l-4 border-sky-600 pl-2.5">
             1. Relevés des 5 Stations Météo-France de Référence (100% Équipées)
           </h2>
 
-          <table className="w-full border-collapse border border-slate-300 text-xs mb-6 shadow-sm">
+          <table className="w-full border-collapse border border-slate-300 text-xs mb-5 shadow-sm">
             <thead>
               <tr className="bg-slate-100 text-slate-800 font-bold">
-                <th className="border border-slate-300 p-2.5 text-left">Station Météo-France</th>
+                <th className="border border-slate-300 p-2 text-left">Station Météo-France</th>
                 <th className="border border-slate-300 p-2 text-center">Distance</th>
                 <th className="border border-slate-300 p-2 text-center">Altitude</th>
                 <th className="border border-slate-300 p-2 text-center">Pluie</th>
@@ -239,10 +250,10 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </table>
 
           {/* 2. Analyse Météorologique descriptive experte */}
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 mb-3 border-l-4 border-sky-600 pl-2.5">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2.5 border-l-4 border-sky-600 pl-2.5">
             2. Analyse Technique & Synthèse des Conditions Observées
           </h2>
-          <div className="border border-slate-300 rounded-xl p-5 bg-slate-50/80 text-xs text-slate-800 leading-relaxed space-y-3 mb-6 shadow-sm">
+          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50/80 text-xs text-slate-800 leading-relaxed space-y-2.5 mb-5 shadow-sm">
             {analysisResult.text ? (
               analysisResult.text.split('\n\n').map((p, idx) => (
                 <p key={idx}>{p}</p>
@@ -253,10 +264,10 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
 
           {/* 3. Méthodologie & Cadre Légal d'Expertise */}
-          <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 mb-3 border-l-4 border-sky-600 pl-2.5">
+          <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 border-l-4 border-sky-600 pl-2.5">
             3. Références Normatives & Traçabilité
           </h2>
-          <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 text-[11px] text-slate-600 space-y-1.5 leading-normal">
+          <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50 text-[11px] text-slate-600 space-y-1.5 leading-normal">
             <p>• <strong>Base de Données Source :</strong> Données issues de la base officielle DPClim de Météo-France.</p>
             <p>• <strong>Standard Métrologique du Vent :</strong> Mesures des rafales maximales normalisées sur 3 secondes (`FXI3S`) selon les directives de l'Organisation Météorologique Mondiale (OMM).</p>
             <p>• <strong>Sélection des Postes :</strong> Stations SYNOP/RADOME 100% équipées de capteurs homologués de vent, pluie et température.</p>
@@ -265,7 +276,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer officiel page 2 */}
-        <div className="pt-4 border-t border-slate-300 flex justify-between items-center text-[10px] text-slate-500">
+        <div className="pt-3 border-t border-slate-300 flex justify-between items-center text-[10px] text-slate-500">
           <p>Météo Climat PRO SASU — Rapport météorologique certifié — Dossier {reference}</p>
           <p className="font-bold">Page 2/2</p>
         </div>

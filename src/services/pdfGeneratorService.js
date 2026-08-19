@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 
 export const pdfGeneratorService = {
   /**
-   * Génération et téléchargement du PDF A4 certifié
+   * Génération et téléchargement du PDF A4 certifié avec capture de la carte Leaflet
    */
   async generateSinistrePdf(elementId, dossierRef = 'Rapport-Sinistre') {
     const element = document.getElementById(elementId);
@@ -11,14 +11,40 @@ export const pdfGeneratorService = {
       throw new Error(`Élément #${elementId} introuvable pour la génération PDF`);
     }
 
-    // Afficher temporairement l'élément s'il est masqué
+    // 1. Capture instantanée de la carte Leaflet affichée à l'écran
+    const mapElement = document.getElementById('sinistre-map-leaflet-container') || document.querySelector('.leaflet-container');
+    if (mapElement) {
+      try {
+        const mapCanvas = await html2canvas(mapElement, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 2,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+        const mapDataUrl = mapCanvas.toDataURL('image/jpeg', 0.95);
+        const pdfMapImg = document.getElementById('pdf-map-snapshot-img');
+        if (pdfMapImg) {
+          pdfMapImg.src = mapDataUrl;
+          pdfMapImg.style.display = 'block';
+        }
+      } catch (e) {
+        console.warn('[PDF] Impossible de capturer la carte Leaflet:', e);
+      }
+    }
+
+    // 2. Afficher temporairement l'élément PDF
     const prevDisplay = element.style.display;
     element.style.display = 'block';
+
+    // Laisser 100ms au DOM pour insérer l'image de la carte
+    await new Promise(res => setTimeout(res, 100));
 
     try {
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
         windowWidth: 1200
