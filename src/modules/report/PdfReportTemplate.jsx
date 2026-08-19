@@ -52,7 +52,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
           </div>
         )}
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {/* Header avec logo officiel et référence bien proportionnée */}
           <div className="flex justify-between items-center pb-2 border-b-2 border-slate-200">
             <div className="flex items-center gap-3.5">
@@ -82,20 +82,20 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
           {/* Titre Principal */}
           <div>
-            <h1 className="text-[14pt] font-black tracking-tight text-slate-950 uppercase leading-none">
+            <h1 className="text-[13.5pt] font-black tracking-tight text-slate-950 uppercase leading-none">
               Rapport Météorologique de Sinistre & Attestation
             </h1>
-            <p className="text-[8.5pt] text-slate-600 font-medium mt-1">
+            <p className="text-[8pt] text-slate-600 font-medium mt-0.5">
               Contrôle d'intempéries et analyse instrumentale à proximité du lieu déclaré
             </p>
           </div>
 
           {/* Fiches Assuré & Sinistre */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/90 text-[8.5pt] space-y-1 shadow-2xs">
-              <h2 className="text-[8pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1 flex items-center justify-between">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50/90 text-[8pt] space-y-1 shadow-2xs">
+              <h2 className="text-[7.5pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-0.5 mb-1 flex items-center justify-between">
                 <span>Assuré</span>
-                <span className="text-[7pt] font-bold text-slate-400">Identité</span>
+                <span className="text-[6.5pt] font-bold text-slate-400">Identité</span>
               </h2>
               {formattedAssureName && (
                 <p><span className="text-slate-500">Nom & Prénom :</span> <strong className="text-slate-950 font-bold">{formattedAssureName}</strong></p>
@@ -111,10 +111,10 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               )}
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50/90 text-[8.5pt] space-y-1 shadow-2xs">
-              <h2 className="text-[8pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-1 mb-1 flex items-center justify-between">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50/90 text-[8pt] space-y-1 shadow-2xs">
+              <h2 className="text-[7.5pt] font-black uppercase tracking-wider text-sky-950 border-b border-slate-200 pb-0.5 mb-1 flex items-center justify-between">
                 <span>Sinistre</span>
-                <span className="text-[7pt] font-bold text-slate-400">Circonstances</span>
+                <span className="text-[6.5pt] font-bold text-slate-400">Circonstances</span>
               </h2>
               {sinistre.numSinistre && (
                 <p><span className="text-slate-500">N° de sinistre :</span> <strong className="font-mono text-slate-950 font-bold">{sinistre.numSinistre}</strong></p>
@@ -132,32 +132,32 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           </div>
 
-          {/* ENCADRÉ CONSIGNE DE GESTION & VERDICT ASSURANCE (HISTORIQUE ASSURWEATHER) */}
+          {/* ENCADRÉ CONSIGNE DE GESTION & VERDICT ASSURANCE */}
           {insuranceDecision?.decision && (
-            <div className={`border rounded-xl p-2.5 text-[8.5pt] flex items-center justify-between shadow-2xs ${
+            <div className={`border rounded-xl p-2 text-[8pt] flex items-center justify-between shadow-2xs ${
               insuranceDecision.isFavorable 
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-950' 
                 : 'border-rose-300 bg-rose-50 text-rose-950'
             }`}>
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{insuranceDecision.isFavorable ? '👍' : '❌'}</span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">{insuranceDecision.isFavorable ? '👍' : '❌'}</span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <strong className="text-[9pt] font-black uppercase tracking-wider">
+                    <strong className="text-[8.5pt] font-black uppercase tracking-wider">
                       Consigne de Gestion : {insuranceDecision.decision}
                     </strong>
-                    <span className={`px-2 py-0.2 rounded text-[7.5pt] font-black uppercase ${
+                    <span className={`px-1.5 py-0.2 rounded text-[7pt] font-black uppercase ${
                       insuranceDecision.isFavorable ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
                     }`}>
                       {insuranceDecision.isFavorable ? 'Garantie Acquise' : 'Garantie Non Acquise'}
                     </span>
                   </div>
-                  <span className="text-[7.5pt] text-slate-700 block mt-0.5">
+                  <span className="text-[7pt] text-slate-700 block mt-0.5">
                     {insuranceDecision.ruleText} — {insuranceDecision.observedSummary}
                   </span>
                 </div>
               </div>
-              <span className="text-[7pt] font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-300">
+              <span className="text-[6.5pt] font-mono font-bold bg-white px-2 py-0.5 rounded border border-slate-300">
                 Seuil {insuranceDecision.threshold} {insuranceDecision.category === 'VENT' ? 'km/h' : (insuranceDecision.category === 'PLUIE' ? 'mm' : '°C')}
               </span>
             </div>
@@ -165,41 +165,41 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
           {/* Contexte de Vigilance Officiel */}
           {vigilanceStatus && (
-            <div className={`border rounded-xl p-2 text-[7.5pt] flex items-center justify-between shadow-2xs ${vigiStyle?.bg}`}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-base">{vigiStyle?.icon}</span>
+            <div className={`border rounded-xl p-1.5 text-[7pt] flex items-center justify-between shadow-2xs ${vigiStyle?.bg}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{vigiStyle?.icon}</span>
                 <div>
                   <strong className={`block uppercase ${vigiStyle?.text}`}>
                     Vigilance {vigilanceStatus.level || 'Normale'} — {Array.isArray(vigilanceStatus.aleas) ? vigilanceStatus.aleas.join(', ') : 'Conditions surveillées'}
                   </strong>
-                  <span className="text-[7pt] text-slate-600">
+                  <span className="text-[6.5pt] text-slate-600">
                     Statut officiel départemental Météo-France. Mesures physiques locales ci-après.
                   </span>
                 </div>
               </div>
-              <span className="text-[6.5pt] font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+              <span className="text-[6pt] font-mono font-bold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200">
                 Source : Météo-France
               </span>
             </div>
           )}
 
-          {/* 4 Cartes KPI comme sur le Dashboard */}
+          {/* 4 Cartes KPI spacieuses et parfaitement proportionnées */}
           <div>
-            <h2 className="text-[8.5pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
+            <h2 className="text-[8pt] font-black uppercase tracking-wider text-slate-900 mb-1 border-l-4 border-sky-600 pl-2">
               Synthèse Météorologique
             </h2>
-            <div className="grid grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-4 gap-2">
               {kpis.map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-2.5 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[75px] box-border">
-                  <div className="text-[7.5pt] font-black uppercase text-slate-700 tracking-wider">
+                <div key={idx} className="border border-slate-200 rounded-xl p-2 bg-slate-50 text-center shadow-2xs flex flex-col justify-center items-center h-[72px] box-border">
+                  <span className="text-[7pt] font-black uppercase text-slate-700 tracking-wider block">
                     {kpi.icon} {kpi.label}
-                  </div>
-                  <div className="text-[13pt] font-black text-slate-950 my-0.5 leading-tight">
+                  </span>
+                  <span className="text-[12pt] font-black text-slate-950 my-0.5 block leading-tight">
                     {kpi.val}
-                  </div>
-                  <div className="text-[7pt] text-slate-500 font-medium truncate w-full">
+                  </span>
+                  <span className="text-[6.5pt] text-slate-500 font-medium block truncate w-full">
                     {kpi.sub}
-                  </div>
+                  </span>
                 </div>
               ))}
             </div>
@@ -216,7 +216,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               </span>
             </div>
 
-            <div className="w-full h-[225px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full h-[220px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
@@ -232,18 +232,18 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer Page 1 */}
-        <div className="flex justify-between items-end pt-1.5 border-t border-slate-200 text-[7.5pt] text-slate-500">
+        <div className="flex justify-between items-end pt-1.5 border-t border-slate-200 text-[7pt] text-slate-500">
           <div>
             <p className="font-bold text-slate-700">Météo Climat PRO — Analyse et expertise météorologique</p>
-            <p className="text-[6.5pt]">Référence : {reference} • Version 1.0 • Document officiel d'expertise</p>
+            <p className="text-[6pt]">Référence : {reference} • Version 1.0 • Document officiel d'expertise</p>
           </div>
           {qrUrl && (
             <div className="flex items-center gap-2">
               <div className="text-right">
-                <span className="text-[7pt] font-bold text-slate-800 block">Vérifier ce rapport</span>
-                <span className="text-[6pt] text-slate-400 font-mono">Authenticité & Traçabilité</span>
+                <span className="text-[6.5pt] font-bold text-slate-800 block">Vérifier ce rapport</span>
+                <span className="text-[5.5pt] text-slate-400 font-mono">Authenticité & Traçabilité</span>
               </div>
-              <img src={qrUrl} alt="QR Code" className="w-8 h-8 border border-slate-200 rounded p-0.5 bg-white" />
+              <img src={qrUrl} alt="QR Code" className="w-7 h-7 border border-slate-200 rounded p-0.5 bg-white" />
             </div>
           )}
         </div>
