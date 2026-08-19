@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Icônes personnalisées nettes
 const redIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
@@ -26,7 +27,7 @@ function AutoFitBounds({ points }) {
   useEffect(() => {
     if (points && points.length > 0) {
       const bounds = L.latLngBounds(points);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+      map.fitBounds(bounds, { padding: [45, 45], maxZoom: 12 });
       setTimeout(() => map.invalidateSize(), 200);
     }
   }, [map, points]);
@@ -62,11 +63,12 @@ export default function SinistreMap({ sinistre, stations = [] }) {
           key={mapKey}
           center={center}
           zoom={10}
+          zoomControl={false}
           scrollWheelZoom={false}
+          attributionControl={false}
           className="h-full w-full z-10"
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             crossOrigin="anonymous"
           />
@@ -76,7 +78,7 @@ export default function SinistreMap({ sinistre, stations = [] }) {
           {/* 🔴 Marqueur Sinistre */}
           <Marker position={center} icon={redIcon}>
             <Tooltip permanent direction="top" offset={[0, -32]} opacity={0.98}>
-              <span className="font-extrabold text-[10px] text-rose-800 bg-white px-2 py-0.5 rounded shadow border border-rose-300 whitespace-nowrap">
+              <span className="font-extrabold text-[10px] text-rose-900 bg-white px-2 py-0.5 rounded shadow-sm border border-rose-300 whitespace-nowrap">
                 🔴 LIEU DU SINISTRE ({sinistre.commune})
               </span>
             </Tooltip>
@@ -89,8 +91,8 @@ export default function SinistreMap({ sinistre, stations = [] }) {
               <React.Fragment key={st.id || idx}>
                 <Marker position={[st.lat, st.lon]} icon={blueIcon}>
                   <Tooltip permanent direction="top" offset={[0, -28]} opacity={0.98}>
-                    <span className="font-bold text-[9pt] text-sky-950 bg-white px-1.5 py-0.5 rounded shadow border border-sky-300 whitespace-nowrap">
-                      🔵 {idx + 1} - {st.name} ({st.distance} km)
+                    <span className="font-bold text-[9.5px] text-sky-950 bg-white px-2 py-0.5 rounded shadow-sm border border-sky-300 whitespace-nowrap">
+                      🔵 {idx + 1} • {st.name} ({st.distance} km)
                     </span>
                   </Tooltip>
                 </Marker>
@@ -99,9 +101,9 @@ export default function SinistreMap({ sinistre, stations = [] }) {
                   positions={[center, [st.lat, st.lon]]}
                   pathOptions={{
                     color: '#0284c7',
-                    weight: 2,
-                    dashArray: '5, 5',
-                    opacity: 0.8
+                    weight: 2.5,
+                    dashArray: '6, 6',
+                    opacity: 0.85
                   }}
                 />
               </React.Fragment>
