@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Download, ArrowLeft, RefreshCw, AlertCircle, Wind, Droplets, 
-  Thermometer, ShieldCheck, MapPin, Calendar, Trophy, Check, X, Sliders
+  Thermometer, ShieldCheck, MapPin, Calendar, Trophy, Check, X, Sliders, FileCheck
 } from 'lucide-react';
 import SinistreMap from '../map/SinistreMap';
 import PdfReportTemplate from '../report/PdfReportTemplate';
+import CertificatIntemperies1Page from '../report/CertificatIntemperies1Page';
 import ConfidenceBadge from '../../components/common/ConfidenceBadge';
 import { meteoFranceClimService } from '../../services/meteoFranceClimService';
 import { weatherAnalysisEngine } from '../../services/weatherAnalysisEngine';
@@ -23,7 +24,8 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [analysisResult, setAnalysisResult] = useState({ text: '', kpis: [], confidence: {} });
   const [insuranceDecision, setInsuranceDecision] = useState(null);
   const [customThreshold, setCustomThreshold] = useState(null);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingPdf1, setIsGeneratingPdf1] = useState(false);
+  const [isGeneratingPdf2, setIsGeneratingPdf2] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
   const [liveVigilance, setLiveVigilance] = useState({
     level: 'Jaune',
@@ -48,8 +50,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       }
 
       const results = [];
-      
-      // Fenêtre d'analyse 3 jours
       const window3Days = insuranceDecisionEngine.get3DayWindow(sinistre.dateSinistre || sinistre.dateDebut);
       const start = isPeriod ? sinistre.dateDebut : window3Days.start;
       const end = isPeriod ? sinistre.dateFin : window3Days.end;
@@ -168,14 +168,25 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
     loadStationData();
   }, [dossier?.id, customThreshold]);
 
-  const handleGeneratePdf = async () => {
-    setIsGeneratingPdf(true);
+  const handleDownloadCertificat1Page = async () => {
+    setIsGeneratingPdf1(true);
     try {
-      await pdfGeneratorService.generateSinistrePdf('pdf-report-container', `Rapport_Sinistre_${reference}`);
+      await pdfGeneratorService.generateCertificat1Page(reference);
     } catch (e) {
-      alert('Erreur lors de la génération du PDF: ' + e.message);
+      alert('Erreur lors de la génération du Certificat: ' + e.message);
     } finally {
-      setIsGeneratingPdf(false);
+      setIsGeneratingPdf1(false);
+    }
+  };
+
+  const handleDownloadRapport2Pages = async () => {
+    setIsGeneratingPdf2(true);
+    try {
+      await pdfGeneratorService.generateRapport2Pages(reference);
+    } catch (e) {
+      alert('Erreur lors de la génération du Rapport: ' + e.message);
+    } finally {
+      setIsGeneratingPdf2(false);
     }
   };
 
@@ -210,7 +221,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   return (
     <div className="space-y-6">
-      {/* Header avec référence et bouton PDF */}
+      {/* Header avec référence et boutons PDF DOUBLE FORMAT */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
@@ -234,14 +245,26 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* 2 Boutons de Téléchargement PDF */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
-            onClick={handleGeneratePdf}
-            disabled={isGeneratingPdf}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white shadow-md shadow-sky-600/20 transition disabled:opacity-50"
+            onClick={handleDownloadCertificat1Page}
+            disabled={isGeneratingPdf1}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition disabled:opacity-50 transform hover:-translate-y-0.5"
+            title="Format standard officiel 1 page pour règlement rapide d'assurance"
+          >
+            <FileCheck className="w-4 h-4" />
+            {isGeneratingPdf1 ? 'Génération…' : "📄 Certificat d'Intempéries (1 Page)"}
+          </button>
+
+          <button
+            onClick={handleDownloadRapport2Pages}
+            disabled={isGeneratingPdf2}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white shadow-md shadow-sky-600/20 transition disabled:opacity-50 transform hover:-translate-y-0.5"
+            title="Format complet 2 pages avec cartographie HD et climatologie"
           >
             <Download className="w-4 h-4" />
-            {isGeneratingPdf ? 'Génération du PDF…' : 'Télécharger le Rapport PDF'}
+            {isGeneratingPdf2 ? 'Génération…' : "📑 Rapport Complet avec Carte (2 Pages)"}
           </button>
         </div>
       </div>
@@ -347,7 +370,6 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
             <Wind className="w-4 h-4 text-rose-600" />
           </div>
           {(() => {
-            // Cherche la rafale max parmi toutes les stations équipées
             let maxFxi = null;
             let maxFxiStation = null;
             let maxFxiHour = '';
@@ -624,7 +646,15 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
         )}
       </div>
 
-      {/* TEMPLATE DU RAPPORT PDF OFFICIEL */}
+      {/* TEMPLATE FORMAT 1 : CERTIFICAT D'INTEMPÉRIES (1 PAGE) */}
+      <CertificatIntemperies1Page
+        dossier={dossier}
+        stationsData={stationsWithData}
+        insuranceDecision={insuranceDecision}
+        vigilanceStatus={liveVigilance}
+      />
+
+      {/* TEMPLATE FORMAT 2 : RAPPORT D'EXPERTISE COMPLET (2 PAGES) */}
       <PdfReportTemplate
         dossier={dossier}
         stationsData={stationsWithData}

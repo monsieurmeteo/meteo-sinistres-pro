@@ -3,17 +3,52 @@ import html2canvas from 'html2canvas';
 
 export const pdfGeneratorService = {
   /**
-   * Génération Page par Page certifiée :
-   * Capture Page 1 séparément puis Page 2 séparément.
-   * Empêche tout chevauchement ou coupure de tableau au milieu de page.
+   * Génération du Certificat d'Intempéries (1 Page A4 ultra-nette)
    */
-  async generateSinistrePdf(elementId, dossierRef = 'Rapport-Sinistre') {
-    const rootElement = document.getElementById(elementId);
+  async generateCertificat1Page(dossierRef = 'Certificat_Intemperies') {
+    const rootElement = document.getElementById('pdf-certificat-container');
     if (!rootElement) {
-      throw new Error(`Élément #${elementId} introuvable pour la génération PDF`);
+      throw new Error("Conteneur #pdf-certificat-container introuvable");
     }
 
-    // 1. Capture propre de la carte Leaflet
+    const prevDisplay = rootElement.style.display;
+    rootElement.style.display = 'block';
+    await new Promise(res => setTimeout(res, 100));
+
+    try {
+      const pageEl = document.getElementById('pdf-certificat-page') || rootElement.children[0];
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const canvas = await html2canvas(pageEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 1000
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.96);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${dossierRef}_Certificat_1Page.pdf`);
+      return true;
+    } finally {
+      rootElement.style.display = prevDisplay;
+    }
+  },
+
+  /**
+   * Génération du Rapport d'Expertise Détaillé (2 Pages A4 avec Carte HD)
+   */
+  async generateRapport2Pages(dossierRef = 'Rapport_Expertise') {
+    const rootElement = document.getElementById('pdf-report-container');
+    if (!rootElement) {
+      throw new Error("Conteneur #pdf-report-container introuvable");
+    }
+
+    // Capture de la carte Leaflet
     const mapElement = document.getElementById('sinistre-map-leaflet-container');
     if (mapElement) {
       try {
@@ -35,7 +70,6 @@ export const pdfGeneratorService = {
       }
     }
 
-    // 2. Afficher temporairement le conteneur PDF
     const prevDisplay = rootElement.style.display;
     rootElement.style.display = 'block';
     await new Promise(res => setTimeout(res, 120));
@@ -45,10 +79,9 @@ export const pdfGeneratorService = {
       const page2El = document.getElementById('pdf-page-2') || rootElement.children[1];
 
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210 mm
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Capture Page 1
       if (page1El) {
         const canvas1 = await html2canvas(page1El, {
           scale: 2,
@@ -62,7 +95,6 @@ export const pdfGeneratorService = {
         pdf.addImage(img1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
-      // Capture Page 2
       if (page2El) {
         pdf.addPage();
         const canvas2 = await html2canvas(page2El, {
@@ -77,11 +109,8 @@ export const pdfGeneratorService = {
         pdf.addImage(img2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
-      pdf.save(`${dossierRef}.pdf`);
+      pdf.save(`${dossierRef}_Rapport_Complet_2Pages.pdf`);
       return true;
-    } catch (err) {
-      console.error('[PDFGenerator] Erreur:', err);
-      throw err;
     } finally {
       rootElement.style.display = prevDisplay;
     }
