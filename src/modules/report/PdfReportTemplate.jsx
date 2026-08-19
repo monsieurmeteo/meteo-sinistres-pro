@@ -44,7 +44,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
       {/* ================= PAGE 1 ================= */}
       <div 
         id="pdf-page-1" 
-        className="w-[210mm] h-[297mm] max-h-[297mm] p-[13mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
+        className="w-[210mm] h-[297mm] max-h-[297mm] p-[12mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
       >
         {isDraft && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10 rotate-[-30deg]">
@@ -54,7 +54,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
 
         <div className="space-y-3">
           {/* Header avec logo officiel et référence bien proportionnée */}
-          <div className="flex justify-between items-center pb-2.5 border-b-2 border-slate-200">
+          <div className="flex justify-between items-center pb-2 border-b-2 border-slate-200">
             <div className="flex items-center gap-3.5">
               <img 
                 src="/logo_meteo_climat_pro.png" 
@@ -162,22 +162,22 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
             </div>
           )}
 
-          {/* Synthèse KPI Page 1 - Parfaite disposition horizontale sans superposition */}
+          {/* Synthèse KPI Page 1 - Hauteur et interlignes généreux pour html2canvas */}
           <div>
-            <h2 className="text-[9pt] font-black uppercase tracking-wider text-slate-900 mb-1.5 border-l-4 border-sky-600 pl-2">
+            <h2 className="text-[9.5pt] font-black uppercase tracking-wider text-slate-900 mb-1.5 border-l-4 border-sky-600 pl-2">
               Synthèse Météorologique
             </h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3.5">
               {kpis.slice(0, 3).map((kpi, idx) => (
-                <div key={idx} className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center shadow-2xs flex flex-col justify-between">
-                  <div className="flex items-center justify-center gap-1.5 text-[8pt] font-black uppercase text-slate-700 tracking-wider">
-                    <span>{kpi.icon}</span>
-                    <span className="truncate">{kpi.label}</span>
+                <div key={idx} className="border border-slate-200 rounded-xl p-3 bg-slate-50 text-center shadow-2xs flex flex-col justify-between items-center min-h-[92px] box-border">
+                  <div className="flex items-center justify-center gap-1.5 text-[8pt] font-black uppercase text-slate-700 tracking-wider w-full pt-1">
+                    <span className="text-sm leading-none">{kpi.icon}</span>
+                    <span className="leading-normal">{kpi.label}</span>
                   </div>
-                  <div className="text-[15pt] font-black text-slate-950 my-1 leading-tight">
+                  <div className="text-[16pt] font-black text-slate-950 my-1 leading-normal">
                     {kpi.val}
                   </div>
-                  <div className="text-[7.5pt] text-slate-500 font-medium truncate w-full">
+                  <div className="text-[8pt] text-slate-500 font-medium leading-normal w-full pb-1">
                     {kpi.sub}
                   </div>
                 </div>
@@ -196,7 +196,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
               </span>
             </div>
 
-            <div className="w-full h-[260px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+            <div className="w-full h-[255px] bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
               <img 
                 id="pdf-map-snapshot-img" 
                 alt="Carte des stations de référence" 
@@ -212,7 +212,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer Page 1 */}
-        <div className="flex justify-between items-end pt-2.5 border-t border-slate-200 text-[8pt] text-slate-500">
+        <div className="flex justify-between items-end pt-2 border-t border-slate-200 text-[8pt] text-slate-500">
           <div>
             <p className="font-bold text-slate-700">Météo Climat PRO — Analyse et expertise météorologique</p>
             <p className="text-[7.5pt]">Référence : {reference} • Version 1.0 • Document officiel d'expertise</p>
@@ -232,10 +232,10 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
       {/* ================= PAGE 2 ================= */}
       <div 
         id="pdf-page-2" 
-        className="w-[210mm] h-[297mm] max-h-[297mm] p-[13mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
+        className="w-[210mm] h-[297mm] max-h-[297mm] p-[12mm_16mm] bg-white mx-auto flex flex-col justify-between relative overflow-hidden box-border shadow-md"
       >
-        <div className="space-y-3.5">
-          <div className="flex justify-between items-center pb-2.5 border-b-2 border-slate-200 mb-1">
+        <div className="space-y-3">
+          <div className="flex justify-between items-center pb-2 border-b-2 border-slate-200 mb-1">
             <span className="text-[9pt] font-black text-sky-950 uppercase">MÉTÉO CLIMAT PRO — RAPPORT D'EXPERTISE {reference}</span>
             <span className="text-[8.5pt] text-slate-600 font-bold">{sinistre.commune} — {sinistre.dateSinistre}</span>
           </div>
@@ -364,7 +364,7 @@ export default function PdfReportTemplate({ dossier, stationsData = [], analysis
         </div>
 
         {/* Footer officiel page 2 */}
-        <div className="pt-2.5 border-t border-slate-200 flex justify-between items-center text-[8pt] text-slate-500">
+        <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-[8pt] text-slate-500">
           <p className="font-bold text-slate-700">Météo Climat PRO — Dossier d'Expertise {reference}</p>
           <p className="font-black text-slate-900">Page 2 / 2</p>
         </div>
