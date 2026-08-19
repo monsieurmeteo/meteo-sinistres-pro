@@ -22,6 +22,7 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
   const [analysisResult, setAnalysisResult] = useState({ text: '', confidence: {}, detectedPhenomena: [] });
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [selectedStationTab, setSelectedStationTab] = useState(0);
+  const [liveVigilance, setLiveVigilance] = useState(null);
 
   const { sinistre = {}, assure = {}, reference = 'MCP-2026-XXXX' } = dossier || {};
   const isPeriod = sinistre.dateDebut && sinistre.dateFin && sinistre.dateDebut !== sinistre.dateFin;
@@ -38,6 +39,13 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
       const start = sinistre.dateDebut || sinistre.dateSinistre;
       const end = sinistre.dateFin || sinistre.dateSinistre;
 
+      // 1. Interrogation asynchrone dynamique de la vigilance officielle
+      const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
+      vigilanceArchiveService.fetchLiveOrArchivedVigilance(dept, start).then(vigi => {
+        if (vigi) setLiveVigilance(vigi);
+      }).catch(e => console.warn(e));
+
+      // 2. Récupération des stations
       for (let i = 0; i < selected.length; i++) {
         const st = selected[i];
         setProgressMsg(`Récupération ${st.name} (${i + 1}/${selected.length})…`);
@@ -148,19 +156,11 @@ export default function WeatherAnalysisView({ dossier, onBack, onUpdateDossier }
 
   const activeStation = stationsWithData[selectedStationTab] || stationsWithData[0];
 
-  // Calcul du statut de vigilance Météo-France avec la base officielle locale
-  const currentVigilance = useMemo(() => {
+  const currentVigilance = liveVigilance || (() => {
     const dept = sinistre.codePostal ? sinistre.codePostal.slice(0, 2) : '59';
     const start = sinistre.dateDebut || sinistre.dateSinistre;
-    return vigilanceArchiveService.fetchOfficialVigilance(
-      dept,
-      start,
-      sinistre.sinistreType || '',
-      analysisResult.detectedPhenomena || [],
-      bestWindStation?.obs?.fxi,
-      bestRainStation?.obs?.rr
-    );
-  }, [sinistre, bestWindStation, bestRainStation, analysisResult]);
+    return vigilanceArchiveService.fetchOfficialVigilance(dept, start);
+  })();
 
   const handleDownloadPdf = async () => {
     setIsGeneratingPdf(true);
